@@ -32,7 +32,7 @@ body:
     validations:
       required: true
 
-- type: dropdown
+  - type: dropdown
     id: feature_area
     attributes:
       label: Feature Area
