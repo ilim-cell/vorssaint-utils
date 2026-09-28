@@ -7,7 +7,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Summary
-Everyday controls and package management behave more reliably across desktop layouts, large clipboard histories and networks that require a proxy or mirror. The update also improves input timing and makes save failures and system prompts easier to handle.
+Everyday controls and package management behave more reliably across desktop layouts, large clipboard histories and networks that require a proxy or mirror. The update also improves input timing and makes save failures and system prompts easier to handle. You can skip an app update or exclude an app, choose which calendars appear in Dynamic Island, and browse App Switcher with a wheel or trackpad.
+
+### Added
+- App Updates can ignore one release or exclude an app from update results and alerts.
+- Dynamic Island lets you choose which calendars appear, grouped by account; hiding a calendar clears its events immediately.
+- App Switcher can browse apps using a mouse wheel or trackpad, with precise wheel movement and consistent scroll direction.
 
 ### Fixed
 - Keyboard and mouse debounce now honor the configured interval on Apple silicon; scrolling features also use consistent event timing.
@@ -19,7 +24,7 @@ Everyday controls and package management behave more reliably across desktop lay
 - Homebrew commands and app update checks use proxy and mirror settings exported by the user's shell, allowing package operations on networks where direct access is blocked.
 
 ### Contributors
-Thanks to @abdulshahid1, @ahfornitani, @arsarsars1, @IanHollow, @iva-zhu, @Kernel-Hunter, @PathGao, @shlok1806, @trac3r00, @tyteachestech and @Yahddyyp.
+Thanks to @abdulshahid1, @ahfornitani, @arsarsars1, @Aryan-Saini, @IanHollow, @iva-zhu, @Kernel-Hunter, @muskecan, @PathGao, @shlok1806, @trac3r00, @tyteachestech, @veged and @Yahddyyp.
 
 ## [3.4.0] - 2026-09-27
 

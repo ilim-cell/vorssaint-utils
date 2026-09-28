@@ -386,6 +386,16 @@ def main():
           + declaration(updates, "    private func onlineCatalogFindings(").replace("private func", "func", 1).replace("Date()", "self.clock.now()")
           + declaration(updates, "    private func onlineResult(").replace("private func", "func", 1)
           + "}\n}\n")
+    # Rule mutations and completion stay verbatim; only declaration visibility changes.
+    write("AppUpdateRules.swift", "import Foundation\nextension AppUpdateRulesContract {\n"
+          + "final class Service: State {\n"
+          + "".join(declaration(updates, prefix).replace("private func", "func", 1)
+                    for prefix in ["    func skipVersion(", "    func excludeApp(",
+                                   "    private func setRule(", "    func removeRule(",
+                                   "    private func saveRules(", "    private func reloadRules(",
+                                   "    private func applyRules(", "    private func finishCheck(",
+                                   "    private static func announcedIDs(", "    private static func saveAnnouncedIDs("])
+          + "}\n}\n")
     playback_adapter = "Sources/NowPlayingAdapter/NowPlayingSelection.swift"
     adapter_entry = "Sources/NowPlayingAdapter/NowPlayingAdapter.swift"
     # Only the clock changes, so tests drive the wait for a chosen source's track.
