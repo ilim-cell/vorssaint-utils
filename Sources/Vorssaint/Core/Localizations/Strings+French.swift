@@ -1082,6 +1082,8 @@ extension Strings {
         linearScrollCaption: "Chaque cran de la molette de la souris fait défiler la même distance, quelle que soit la vitesse de rotation. Le trackpad ne change pas.",
         linearScrollLinesLabel: "Lignes par cran",
         shelfClearOnClose: "Vider à la fermeture",
-        shelfClearOnCloseCaption: "Vide l’étagère uniquement lorsque vous cliquez sur le bouton de fermeture. Le masquage automatique et la réduction conservent les éléments."
+        shelfClearOnCloseCaption: "Vide l’étagère uniquement lorsque vous cliquez sur le bouton de fermeture. Le masquage automatique et la réduction conservent les éléments.",
+        shelfShortcutFinderSelection: "Ajouter la sélection du Finder avec le raccourci",
+        shelfShortcutFinderSelectionCaption: "Quand le Finder est au premier plan, le raccourci ouvre l’étagère avec les fichiers sélectionnés déjà dedans. Sans sélection, elle s’ouvre comme d’habitude."
     )
 }

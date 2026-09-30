@@ -1083,6 +1083,8 @@ extension Strings {
         linearScrollCaption: "마우스 휠을 얼마나 빨리 돌리든 한 칸마다 항상 같은 거리만큼 스크롤합니다. 트랙패드는 변경되지 않습니다.",
         linearScrollLinesLabel: "한 칸당 줄 수",
         shelfClearOnClose: "닫을 때 항목 지우기",
-        shelfClearOnCloseCaption: "닫기 버튼을 클릭할 때만 선반을 비웁니다. 자동으로 숨겨지거나 접을 때는 항목을 유지합니다."
+        shelfClearOnCloseCaption: "닫기 버튼을 클릭할 때만 선반을 비웁니다. 자동으로 숨겨지거나 접을 때는 항목을 유지합니다.",
+        shelfShortcutFinderSelection: "단축키로 Finder 선택 항목 추가",
+        shelfShortcutFinderSelectionCaption: "Finder가 앞에 있을 때 단축키를 누르면 선택한 파일이 담긴 선반이 열립니다. 아무것도 선택하지 않았다면 평소처럼 열립니다."
     )
 }

@@ -1082,6 +1082,8 @@ extension Strings {
         linearScrollCaption: "Každý krok kolieska myši posunie rovnakú vzdialenosť bez ohľadu na to, ako rýchlo sa točí. Trackpadu sa to netýka.",
         linearScrollLinesLabel: "Riadky na krok",
         shelfClearOnClose: "Vymazať pri zatvorení",
-        shelfClearOnCloseCaption: "Vyprázdni policu len vtedy, keď kliknete na jej tlačidlo zatvorenia. Automatické skrytie a zbalenie položky zachovajú."
+        shelfClearOnCloseCaption: "Vyprázdni policu len vtedy, keď kliknete na jej tlačidlo zatvorenia. Automatické skrytie a zbalenie položky zachovajú.",
+        shelfShortcutFinderSelection: "Pridať výber z Findera skratkou",
+        shelfShortcutFinderSelectionCaption: "Keď je Finder v popredí, skratka otvorí policu už s vybranými súbormi. Ak nie je nič vybraté, otvorí sa ako zvyčajne."
     )
 }

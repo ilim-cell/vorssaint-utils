@@ -1082,6 +1082,8 @@ extension Strings {
         linearScrollCaption: "Ogni scatto della rotellina del mouse scorre la stessa distanza, a prescindere dalla velocità di rotazione. Il trackpad non cambia.",
         linearScrollLinesLabel: "Righe per scatto",
         shelfClearOnClose: "Svuota alla chiusura",
-        shelfClearOnCloseCaption: "Svuota lo scaffale solo quando fai clic sul pulsante di chiusura. Se si nasconde automaticamente o viene ridotto, gli elementi restano."
+        shelfClearOnCloseCaption: "Svuota lo scaffale solo quando fai clic sul pulsante di chiusura. Se si nasconde automaticamente o viene ridotto, gli elementi restano.",
+        shelfShortcutFinderSelection: "Aggiungi la selezione del Finder con la scorciatoia",
+        shelfShortcutFinderSelectionCaption: "Con il Finder in primo piano, la scorciatoia apre il ripiano con i file selezionati già dentro. Senza selezione si apre come sempre."
     )
 }

@@ -1082,6 +1082,8 @@ extension Strings {
         linearScrollCaption: "Cada paso de la rueda del ratón desplaza la misma distancia, sin importar la velocidad del giro. El trackpad no cambia.",
         linearScrollLinesLabel: "Líneas por paso",
         shelfClearOnClose: "Borrar al cerrar",
-        shelfClearOnCloseCaption: "Vacía el estante solo al hacer clic en el botón de cierre. Ocultarlo automáticamente y contraerlo conservan los ítems."
+        shelfClearOnCloseCaption: "Vacía el estante solo al hacer clic en el botón de cierre. Ocultarlo automáticamente y contraerlo conservan los ítems.",
+        shelfShortcutFinderSelection: "Añadir la selección del Finder con el atajo",
+        shelfShortcutFinderSelectionCaption: "Con el Finder al frente, el atajo abre el estante con los archivos seleccionados ya dentro. Sin selección, se abre como siempre."
     )
 }
