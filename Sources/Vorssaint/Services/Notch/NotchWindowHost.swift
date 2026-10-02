@@ -578,6 +578,14 @@ final class NotchWindowHost: NSObject, CAAnimationDelegate {
         return canvas.containsVisiblePoint(canvas.convert(panel.convertPoint(fromScreen: screenPoint), from: nil))
     }
 
+    /// Whether the silhouette the island is settling into contains a screen
+    /// point. The hover pulse resizes the island under a pointer that has not
+    /// moved; the shape still in motion would reject a click it is growing to cover.
+    func containsDestination(_ screenPoint: CGPoint) -> Bool {
+        guard isPresented, !concealedForMissionControl else { return false }
+        return canvas.containsDestinationPoint(canvas.convert(panel.convertPoint(fromScreen: screenPoint), from: nil))
+    }
+
     func contains(_ screenPoint: CGPoint) -> Bool {
         if containsSurface(screenPoint) { return true }
         guard isPresented, !concealedForMissionControl, let container = quickAccessContainer else { return false }
@@ -1042,7 +1050,7 @@ private final class NotchCanvas: NSView {
         let increasedContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let color = (increasedContrast ? NSColor.white : outlineColor).withAlphaComponent(
             outlineEnabled ? (increasedContrast ? 0.85 : 0.65) : (increasedContrast ? 0.45 : 0)).cgColor
-        let lineWidth: CGFloat = outlineEnabled ? 2 : 0.5
+        let lineWidth: CGFloat = outlineEnabled ? NotchLayout.outlineWidth : 0.5
         let opacity: Float = outlineEnabled || contentSize.height > 64 ? 1 : 0
         guard edge.strokeColor != color || edge.lineWidth != lineWidth || edge.opacity != opacity else { return }
         CATransaction.begin()
@@ -1212,7 +1220,16 @@ private final class NotchCanvas: NSView {
     }
 
     func containsVisiblePoint(_ point: CGPoint) -> Bool {
-        guard let path = visiblePath else { return false }
+        contains(point, in: visiblePath)
+    }
+
+    /// The model path already describes the size a resize is heading to.
+    func containsDestinationPoint(_ point: CGPoint) -> Bool {
+        contains(point, in: silhouette.path.map(inCanvas))
+    }
+
+    private func contains(_ point: CGPoint, in path: CGPath?) -> Bool {
+        guard let path else { return false }
         if path.contains(point) { return true }
         // The menu bar above a capsule is still the island's, as the top edge
         // of a hanging one is: a click at the screen's edge opens it.
@@ -1590,6 +1607,9 @@ final class NotchActivationButton: NSButton {
     var willPress: (() -> Void)?
     var activate: (() -> Void)?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    // With Keyboard navigation on, a click would focus the button, and macOS
+    // draws its focus ring around the camera it sits behind.
+    override var acceptsFirstResponder: Bool { false }
     override func mouseDown(with event: NSEvent) {
         willPress?()
         super.mouseDown(with: event)

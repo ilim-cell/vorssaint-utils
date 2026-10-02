@@ -1035,6 +1035,7 @@ enum NotchPresentationProbe {
                     for (size, compact) in states {
                         transitions += 1
                         let access = size == geometry.expanded ? shortcuts : nil
+                        let from = host.targetSize
                         host.present(size: size, geometry: geometry, animated: animated, quickAccess: access)
                         var settled = false
                         host.whenSettled { settled = true }
@@ -1043,6 +1044,17 @@ enum NotchPresentationProbe {
                             RunLoop.current.run(until: Date().addingTimeInterval(0.008))
                             samples += 1
                             let visible = host.visibleFrame
+                            // A top-edge click goes by the shape the island is heading to: from the
+                            // first frame it takes the edge it grows to and never the one it leaves.
+                            if compact && previouslyCompact {
+                                let to = geometry.frame(for: size), left = geometry.frame(for: from)
+                                let top = screen.frame.maxY, margin = NotchLayout.shoulder + 2
+                                if !host.containsDestination(CGPoint(x: to.midX, y: top))
+                                    || (to.maxX > left.maxX + margin && !host.containsDestination(CGPoint(x: to.maxX - margin, y: top)))
+                                    || (left.maxX > to.maxX + margin && host.containsDestination(CGPoint(x: left.maxX - 1, y: top))) {
+                                    failures.insert("a top-edge click did not follow the shape the island is resizing to")
+                                }
+                            }
                             if !physical && compact && previouslyCompact && visible.height > barHeight + 0.5 {
                                 failures.insert("a compact simulated transition grew below the menu bar")
                             }
