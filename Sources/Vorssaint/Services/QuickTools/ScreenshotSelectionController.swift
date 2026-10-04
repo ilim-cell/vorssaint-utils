@@ -507,10 +507,13 @@ final class ScreenshotSelectionController {
         }
     }
 
-    fileprivate func adjustLoupeZoom(by scrollDelta: CGFloat, stepped: Bool) {
+    fileprivate func adjustLoupeZoom(by scrollDelta: CGFloat,
+                                     stepped: Bool,
+                                     isContinuous: Bool) {
         loupeZoom = stepped
             ? ScreenshotSupport.captureLoupeSteppedZoom(loupeZoom, adjustedBy: scrollDelta)
-            : ScreenshotSupport.captureLoupeZoom(loupeZoom, adjustedBy: scrollDelta)
+            : ScreenshotSupport.captureLoupeFastZoom(loupeZoom, adjustedBy: scrollDelta,
+                                                     isContinuous: isContinuous)
     }
 
     /// C copies the color under the pointer in the configured picker format
@@ -689,14 +692,16 @@ final class ScreenshotSelectionController {
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            guard let image = await ScreenshotCaptureEngine.captureWindow(
+            // A composite with an attached dialog may be captured at another
+            // display's scale than this panel's; record the one it has.
+            guard let capture = await ScreenshotCaptureEngine.captureWindow(
                 windowID, scale: panel.pixelScale) else {
                 self.finish(.failed)
                 return
             }
             self.finish(.captured(Capture(
-                image: image,
-                scale: panel.pixelScale,
+                image: capture.image,
+                scale: capture.scale,
                 anchorRect: ScreenshotSupport.cocoaRect(
                     fromFlippedView: frame,
                     screenFrame: panel.screenFrame))))
@@ -1192,7 +1197,8 @@ private final class ScreenshotOverlayView: NSView {
         }
         controller.adjustLoupeZoom(
             by: wheelDelta,
-            stepped: stepped)
+            stepped: stepped,
+            isContinuous: event.hasPreciseScrollingDeltas)
     }
 
     override func mouseDown(with event: NSEvent) {

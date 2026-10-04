@@ -85,7 +85,8 @@ enum NotchAgentTests {
                         && AgentPricing.price(for: "codex-auto-review") == nil
                         && AgentPricing.cost(AgentBillable(tokens: AgentTokens(input: 10)), model: "gpt-reserve").cost == nil,
                      "an unlisted model or sibling has no price rather than a borrowed one")
-        suite.expect(AgentPricing.price(for: "claude-opus-5-6") == nil && AgentPricing.price(for: "claude-sonnet-5-5") == nil
+        // Sonnet 5.5 now has published prices: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
+        suite.expect(AgentPricing.price(for: "claude-opus-5-6") == nil && AgentPricing.price(for: "claude-sonnet-5-6") == nil
                         && AgentPricing.price(for: "claude-opus-6") == nil && AgentPricing.price(for: "gpt-7") == nil
                         && AgentPricing.price(for: "gpt-6-sol-2") == nil,
                      "a version the list does not name yet has no price rather than its predecessor's")
@@ -97,6 +98,9 @@ enum NotchAgentTests {
         suite.expect(AgentPricing.price(for: "gpt-5.5-cyber")?.input == 12.5 && AgentPricing.price(for: "gpt-5.4-mini")?.input == 0.75
                         && AgentPricing.price(for: "claude-mythos-preview")?.output == 125
                         && AgentPricing.price(for: "gpt-daybreak-red-latest")?.output == 75
+                        // Turbo snapshots have their own rates: https://developers.openai.com/api/docs/models/gpt-4-turbo-preview
+                        && AgentPricing.price(for: "gpt-4-0125-preview")?.input == 10
+                        && AgentPricing.price(for: "gpt-4-1106-vision-preview")?.output == 30
                         && AgentPricing.price(for: "gpt-4o-2024-05-13")?.input == 5 && AgentPricing.price(for: "gpt-4o-2024-08-06")?.input == 2.5,
                      "specialized models, aliases and snapshots priced apart get their own price")
         let writes = AgentBillable(tokens: AgentTokens(cacheWrite: 100_000))
@@ -145,7 +149,8 @@ enum NotchAgentTests {
                         == AgentPlan(name: "Max 20×", monthlyPrice: 200)
                         && AgentPlans.claude(organizationType: "claude_pro", rateLimitTier: nil)?.monthlyPrice == 20
                         && AgentPlans.claude(organizationType: nil, rateLimitTier: nil) == nil
-                        && AgentPlans.codex(planType: "pro") == AgentPlan(name: "Pro", monthlyPrice: 200)
+                        // Pro has multiple monthly prices: https://learn.chatgpt.com/docs/pricing
+                        && AgentPlans.codex(planType: "pro") == AgentPlan(name: "Pro", monthlyPrice: nil)
                         && AgentPlans.codex(planType: "business") == AgentPlan(name: "Business", monthlyPrice: nil)
                         && AgentPlans.claude(organizationType: "claude_ultra", rateLimitTier: "default_claude_ultra")
                         == AgentPlan(name: "Ultra", monthlyPrice: nil),
@@ -436,6 +441,21 @@ enum NotchAgentTests {
         ], observed: Date(timeIntervalSince1970: 1_000))
         suite.expect(slots?.map(\.kind) == [.session, .weekly] && slots?.last?.resetsAt == Date(timeIntervalSince1970: 1_060),
                      "windows are told apart by length, and a relative renewal counts from the reading")
+        var businessState = AgentLogState()
+        let business = line(#"{"timestamp":"2026-09-22T15:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"limit_id":"codex","primary":null,"secondary":null,"individual_limit":{"limit":"2500","used":"73.16","remaining_percent":97,"resets_at":1793491201},"spend_control_reached":null,"plan_type":"business"}}}"#)
+        let businessLimits = AgentLogParser.parseCodex(business, state: &businessState, now: now).compactMap { entry -> AgentLimits? in
+            if case .limits(let limits) = entry { return limits }
+            return nil
+        }
+        suite.expect(businessLimits.first?.windows.map(\.id) == ["codex.individual"]
+                        && businessLimits.first?.windows.first?.usedPercent == 3
+                        && businessLimits.first?.windows.first?.resetsAt == Date(timeIntervalSince1970: 1_793_491_201),
+                     "a Business log's own allowance counts when its windows are empty")
+        let both = AgentLogParser.codexWindows([
+            "primary": ["used_percent": 40.0, "window_minutes": 300],
+            "individual_limit": ["remaining_percent": 10],
+        ], observed: now)
+        suite.expect(both?.map(\.id) == ["codex.300"], "an account's own windows come before its individual allowance")
         var aborted = AgentLogState(turnOpen: true)
         suite.expect(AgentLogParser.parseCodex(line(#"{"timestamp":"2026-09-22T15:00:00.000Z","type":"event_msg","payload":{"type":"turn_aborted","duration_ms":10961}}"#),
                                                state: &aborted, now: now)
@@ -2307,7 +2327,7 @@ enum NotchAgentTests {
                         && !NotchSupport.routes(.agents, in: defaults),
                      "turning AI agents off removes their page and notices")
         defaults.set(true, forKey: DefaultsKey.notchAgentsEnabled)
-        suite.expect(NotchSupport.modules(in: defaults).last == .agents && NotchAgentSupport.isEnabled(in: defaults)
+        suite.expect(NotchSupport.modules(in: defaults).contains(.agents) && NotchAgentSupport.isEnabled(in: defaults)
                         && NotchSupport.routes(.agents, in: defaults) && NotchAgentSupport.showsLiveActivity(in: defaults),
                      "choosing it adds the page, its notices and its live strip")
         defaults.set(false, forKey: AppFeature.notchAgents.availabilityKey)

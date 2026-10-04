@@ -53,7 +53,7 @@ body:
       label: Feature Area
       description: The same groups you see in Settings.
       options:
-        - General
+        - Essentials
         - Utilities
         - Sound
         - Energy and display

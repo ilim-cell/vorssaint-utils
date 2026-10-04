@@ -10,7 +10,8 @@ import SwiftUI
 /// island shows.
 struct NotchTimerStrip: View {
     @ObservedObject var service: NotchService
-    /// Another display's strip, when the island shows on every display.
+    /// Where the island draws it: its own strip as of the last update, or
+    /// another display's when the island shows on every display.
     var displayGeometry: NotchGeometry? = nil
     @ObservedObject private var timer = NotchTimerService.shared
     // The companion's label reads these.
@@ -132,7 +133,7 @@ struct NotchCompanionMark: View {
         case .music:
             NotchMusicCover(artwork: music.artwork, side: geometry.compactMusicArtworkSide,
                             radius: geometry.compactMusicArtworkRadius)
-        case .timer, .keepAwake:
+        case .timer, .keepAwake, .watch:
             EmptyView()
         }
     }
@@ -170,7 +171,7 @@ struct NotchCompanionMark: View {
             return geometry.compactMusicArtworkInset
         case .calendar:
             return geometry.compactActivityEdgeInset(boxHeight: 9, radius: 0)
-        case .downloads, .timer, .keepAwake:
+        case .downloads, .timer, .keepAwake, .watch:
             let side = min(13, NotchTimerSupport.stripIconSize(height: geometry.compactActivityContentHeight))
             return geometry.compactActivityEdgeInset(boxHeight: side, radius: side / 2)
         }
@@ -191,7 +192,7 @@ struct NotchCompanionMark: View {
             let playback = NotchMusicService.shared.playback
             let title = playback?.track.title ?? FeatureStrings.radialMenu(language).mediaNowPlaying
             return [title, playback?.track.artist].compactMap { $0 }.joined(separator: ", ")
-        case .timer, .keepAwake:
+        case .timer, .keepAwake, .watch:
             return companion.title(language)
         }
     }

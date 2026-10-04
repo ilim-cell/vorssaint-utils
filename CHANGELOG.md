@@ -7,9 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Summary
-On macOS 27 the Volume mixer can send a single app to an AirPlay speaker, clipboard searches highlight what they matched, and screenshots gain a Full screen button, an optional confirmation preview and a shortcut that uploads the latest capture as a temporary link. Dynamic Island shows song covers in Up next and keeps the playing song while a web player loads the next one, and its AI Agents page adds OpenCode and picks up where the last launch stopped instead of reading every log again. Volume and mute keys follow what the output really does after the Mac wakes, and brightness and volume keys pressed with Option, Command or Control reach macOS again.
+Dynamic Island gains an optional companion, a Command Bar that opens from it and notices that fit their content. Watch can follow changes in any part of a window, while AI Agents adds OpenCode and resumes log reading where the last launch stopped. The Volume mixer can send one app to an AirPlay speaker on macOS 27, clipboard searches highlight matches, and screenshots gain faster capture and sharing through temporary links. Smaller fixes improve Space switching, capture and trackpad controls, clipboard history, settings backups and monitor readings.
 
 ### Dynamic Island
+- A companion can live in the island. Installed on the Features page, and already installed in betas for people who use the Command Bar, it hops out from behind the camera and rests beside it when nothing else is there, passes through now and then, and comes out over music, the timer and other activities to react to music starting, an event beginning, an AI agent getting to work or finishing, its limit renewing, a finished download, what Watch waited for, the charger, Keep Awake, the microphone, a screenshot or the Mac unlocking. It stays beside the camera while the island opens and closes, steps into the notices it reacts to and hops back after, watches the last five seconds of a timer and cheers a finished focus session, follows the pointer, can be petted, and grows sleepy after a long rest and stretches when you come back. Its own tab shows it live in a slice of the island, acts out every moment it reacts to under See how it reacts, and has Say Hi to see it in the island. Choose its Style, Shape, Color and Side of the camera, how often it appears and whether it reacts. Settings → Dynamic Island → Companion.
+- With Command Bar in the island on, the Command Bar shortcut drops the bar out of the island with the companion as its face. It reads along as you type, reacts to the results and goes back into the island when the bar closes, smiling when you ran something. Choose Open island under Opens as to show the bar inside the island instead. Settings → Dynamic Island → Companion → Command Bar in the island.
+- The notice for a finished timer keeps the orange of the timer's strip and page.
+- Notices beside the camera take only the room they need on each side. A short reply next to a long sender, a microphone or clipboard notice, or a brightness, volume or keyboard light level no longer leaves a band of empty black at one end: the island reaches further toward its wider side while the camera's gap stays in place, and a message that wraps onto two lines is only as wide as its lines.
+- When a level needs another width, such as brightness reaching 100% or volume dropping below 10%, the island eases to it, and its icon, reading and meter move with the edge instead of jumping ahead of it.
+- Watch is a new page that turns any part of any window into a live activity. Choose Area lets you drag over a progress bar, a build status or a score, or click a window to take all of it, and the closed island shows what the area reads. Tell me picks when it speaks up, such as when the area changes, stops changing, shows a text you type or reaches a number you type. The area is read on the Mac with Screen Recording, and nothing leaves it. Settings → Dynamic Island → Content → Watch.
 - The camera mirror fills the island's page instead of showing a small preview in the middle, and Stop camera sits over the image beside the camera picker.
 - An event countdown paired with music or AI agents is only as wide as its clock and the other activity's mark need, like a timer's pair, so it leaves no extra black beside the camera. With Show over the menus off, the pair also stays beside the camera on a crowded menu bar whenever it fits.
 - The capsule grows around what it shows when the pointer reaches it, so a song's cover and sound bars no longer jump outward first.
@@ -33,7 +39,23 @@ On macOS 27 the Volume mixer can send a single app to an AirPlay speaker, clipbo
 - Clipboard searches highlight the words they matched in the history window, the menu bar panel's Clipboard tab and Dynamic Island's Clipboard page.
 - The screenshot selection shows a Full screen button near the top of the display under the pointer, which captures that whole display in one click.
 
+### Changed
+- Deleting a Radial Menu profile now asks for confirmation and names the profile and what will be removed.
+- Trackpad middle click is named explicitly, and cleanup, microphone, quit-protection and Command Bar privacy messages more accurately describe what happens.
+- Removed unused private code.
+
 ### Fixed
+- Support thank-you messages use a white heart in dark mode so it stays visible.
+- Settings backups leave recording and screenshot folders and the replacement music app path on their own Mac, preserving the receiving Mac's choices when restored.
+- The system monitor moves byte sizes and rates to the next unit when rounding reaches its boundary. Out-of-range SMART usage values no longer crash the app during a disk refresh.
+- Checking or using a banked Codex reset no longer refreshes plugin marketplaces.
+- App Switcher stops raising a window again after a Space switch has already focused it.
+- Window captures keep attached sheets and dialogs when the window spans two displays, including displays with different scales.
+- Fast magnifier zoom crosses the range in a few mouse-wheel notches, while stepped zoom and trackpads keep their pace.
+- Clipboard settings has one Clear unpinned button. Pinned entries stay, and the Command Bar still finds the action by its former names.
+- The Command Bar's Kill Process rows follow the sort order selected on the Kill Process page.
+- Trackpad middle click explains when no readable trackpad is available and updates the warning as devices disconnect and reconnect.
+- Searching a feature in the Command Bar, such as Keep awake or Shelf, lists its switch or main command first, then its presets, then its Settings page, instead of the Settings page first and the switch last.
 - Dynamic Island keeps the current song on screen while a web player loads the next one, instead of briefly showing another player's paused song. With the New track indicator on, a new song appears in the indicator before the compact island, even when it takes a while to load.
 - With Automatically include videos and other apps on, Dynamic Island switches to a browser that starts playing even while macOS still points to a paused music app.
 - Lyrics are also found for songs whose player reports no album.
@@ -42,6 +64,7 @@ On macOS 27 the Volume mixer can send a single app to an AirPlay speaker, clipbo
 - When Dynamic Island opens on a click, a click at the top edge of the screen while the island grows under the pointer now opens it instead of doing nothing.
 - With Keyboard navigation on in System Settings, clicking Dynamic Island no longer leaves a focus ring around the camera.
 - The AI Agents page shows the 5-hour session renewing five hours after its first request, as the provider's usage page does, instead of up to an hour later.
+- The AI Agents page shows the Codex limit of Business accounts, which report their own allowance in place of the usual session and weekly windows, instead of no limit or an old reading.
 - On a Mac with a notch, the outline from Show outline no longer hides behind the camera while Dynamic Island is closed. The closed island reaches slightly past the notch to show it.
 - Dynamic Island's Combine menu names each pair in the order the island shows it, left to right, such as Music + Timer.
 - On a Mac with a notch, a Dynamic Island page title too long for the space beside the camera, such as Camera mirror on some displays, now moves to a row below the camera instead of being cut off. Titles that fit stay beside the camera.
@@ -51,9 +74,10 @@ On macOS 27 the Volume mixer can send a single app to an AirPlay speaker, clipbo
 - Cancelling a GIF export from the recording editor no longer leaves a hidden empty file in the folder it was saving to.
 - Uninstalling with `Tools/uninstall.sh` now removes the password-free closed-lid rule, which the script used to leave behind.
 - The Uninstaller's app pickers and the Command Bar's Uninstall Application list offer only apps it can remove, so Apple's App Store apps, iPhone and iPad apps and linked apps no longer lead back to an empty drop zone. A refused app or a link dragged from a browser springs back from the drop zone instead.
+- App Switcher keeps showing apps that are too busy to describe their windows to Accessibility in time.
 
 ### Contributors
-Thanks to @69grcv8vfm-sys, @AlirezaBs, @bebricoOOOOOOf, @benjaminbelloeil, @benjaminbrtrd, @dc0dr, @dreammissnot, @emreertunc, @EugeneCarldotme, @Ffinnis, @frieddeli, @Frozen0wl, @gorillasuti, @ilim-cell, @iltonandrew, @itsalexcoman, @mikeknight85, @niukanen1, @Qarru, @Retr0MrWave, @ruvelro, @sagnikonly, @samanyudas, @sarat03, @thitiwats and @yuzu-octopus. Feedback: Barbel Design, Emanuele Frasca, Pinea and the/master.
+Thanks to @69grcv8vfm-sys, @AlirezaBs, @bebricoOOOOOOf, @benjaminbelloeil, @benjaminbrtrd, @bmrtfm, @dc0dr, @dreammissnot, @emreertunc, @EugeneCarldotme, @Ffinnis, @frieddeli, @Frozen0wl, @gorillasuti, @ilim-cell, @iltonandrew, @itsalexcoman, @LeChaEgg, @mikeknight85, @niukanen1, @PathGao, @Qarru, @Retr0MrWave, @ruvelro, @sagnikonly, @samanyudas, @sarat03, @shlok1806, @thitiwats, @trac3r00 and @yuzu-octopus. Feedback: Barbel Design, Emanuele Frasca, Pinea and the/master.
 
 ## [3.4.1-beta.1] - 2026-09-29
 
@@ -144,6 +168,7 @@ This beta takes Dynamic Island beyond the notch. It floats as a capsule on displ
 - Radial menu profiles refuse a shortcut that another profile or feature already uses, and other shortcut settings now warn when a combination belongs to a radial menu profile.
 - The Keyboard Shortcuts page lists the shortcuts radial menu profiles use and links to the Radial menu page to change them, instead of showing an outdated shortcut whose changes had no effect.
 - Extra Brightness no longer hides purchase confirmations in the system app store or administrator password prompts.
+- Maximize windows no longer snaps a window moved in from another display back to its old size when the Dock is on the right, as happened with Google Chrome.
 - Clipboard History search reuses prepared text while typing in long histories, reducing repeated processing.
 - Scratchpad warns in both views when notes cannot be saved and shows a warning if the final save fails while closing.
 - Homebrew commands and app update checks use proxy and mirror settings exported by the user's shell, allowing package operations on networks where direct access is blocked.

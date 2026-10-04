@@ -47,6 +47,16 @@ def availability_declaration(path, prefix):
 
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
+    write("SwitcherAccessibilitySnapshot.swift", "import ApplicationServices\nimport CoreGraphics\nimport Foundation\n"
+          + "extension SwitcherAccessibilitySnapshotTests.Reader {\n"
+          + "".join(declaration("Sources/Vorssaint/Services/Switcher/WindowEnumerator.swift", prefix)
+                    .replace("private ", "", 1) for prefix in [
+                        "    private struct AccessibilityWindowSnapshot {",
+                        "    private struct AccessibilityWindowSnapshotList {",
+                        "    private enum WindowReading {",
+                        "    private static func accessibilityWindows(for pid: pid_t,",
+                        "    private static func appendUnique(", "    private static func contains("])
+          + "}\n")
     write("NotchActivityPicker.swift", "import SwiftUI\n"
           + declaration("Sources/Vorssaint/UI/Notch/NotchView.swift", "struct NotchShape: Shape {")
           + declaration("Sources/Vorssaint/UI/Notch/NotchView.swift", "struct NotchActivityPicker: View {"))
@@ -147,6 +157,11 @@ def main():
           + declaration("Sources/Vorssaint/Services/Switcher/WindowPreviewProvider.swift",
                         "    static func captureViaWindowServer(")
           + "}\n")
+    write("ScreenshotAttachedCapture.swift", "import AppKit\nimport ScreenCaptureKit\n"
+          + "extension ScreenshotAttachedCaptureTests {\nenum Engine {\n"
+          + declaration("Sources/Vorssaint/Services/QuickTools/ScreenshotCaptureEngine.swift",
+                        "    private static func composeAttached(").replace("private static", "static", 1)
+          + "}\n}\n")
     write("ScratchpadExport.swift", "import AppKit\nimport Foundation\n"
           + "extension ScratchpadExportContract {\nfinal class Service: Fixture {\n"
           + declaration("Sources/Vorssaint/Services/QuickTools/ScratchpadService.swift",
@@ -165,6 +180,31 @@ def main():
                     .replace("private ", "", 1) for prefix in [
                         "    func syncWithPreferences(", "    private func start(", "    func stop(",
                         "    private func handleLaunch(", "    private func handleMediaKeyEvent("])
+          + "}\n}\n")
+    middle_click_lifecycle = "".join(
+        declaration("Sources/Vorssaint/Services/MiddleClick/MiddleClickService.swift", prefix)
+        .replace("private ", "", 1) for prefix in [
+            "    private func startMultitouch(", "    private func stopMultitouch(",
+            "    private func restartMultitouch(", "    private func installHotplugObserver(",
+            "    private func removeObservers(", "    private func stop("])
+    for function in ["IONotificationPortCreate", "IONotificationPortSetDispatchQueue",
+                     "IOServiceAddMatchingNotification", "IOServiceMatching", "IOIteratorNext",
+                     "IOObjectRelease", "IONotificationPortDestroy"]:
+        middle_click_lifecycle = middle_click_lifecycle.replace(function + "(", "IO." + function + "(")
+    write("MiddleClickTrackpad.swift", "import CoreGraphics\nimport Foundation\nimport IOKit\n"
+          + "extension MiddleClickTrackpadContract {\nfinal class Service: Fixture {\n"
+          + middle_click_lifecycle
+          + "}\n}\n")
+    menu_panel = "Sources/Vorssaint/UI/MenuPanel/MenuPanelView.swift"
+    write("MiddleClickPanelCaption.swift", "import Foundation\n"
+          + "extension MiddleClickTrackpadContract {\nfinal class Panel: PanelFixture {\n"
+          + "".join(declaration(menu_panel, prefix).replace("private ", "", 1) for prefix in [
+                "    private var middleClickCaption:", "    private func missingPermission("])
+          + "}\n}\n")
+    write("RadialMenuProfileDeletion.swift", "import Foundation\n"
+          + "extension RadialMenuProfileDeletionContract {\nfinal class Settings: Fixture {\n"
+          + declaration("Sources/Vorssaint/UI/Settings/RadialMenuSettings.swift",
+                        "    private func deleteProfile(").replace("private ", "", 1)
           + "}\n}\n")
     fan_control = "Sources/Vorssaint/Services/FanControl/FanControlService.swift"
     write("FanControlResume.swift", "import Foundation\n"
@@ -205,6 +245,14 @@ def main():
                         "    func restoreBorrowedInputSource(",
                         "    var hasBorrowedInputSource:"])
           + "}\n}\n")
+    write("CommandBarKillProcessOrder.swift", "import Foundation\n"
+          + "extension CommandBarKillProcessOrderContract {\nfinal class Service: Fixture {\n"
+          + declaration("Sources/Vorssaint/Services/CommandBar/CommandBarService.swift",
+                        "    private func loadKillProcessEntries(").replace("private func", "func", 1)
+          + "}\n}\nextension CommandBarKillProcessOrderContract.Processes {\n"
+          + declaration("Sources/Vorssaint/Services/KillProcess/KillProcessService.swift",
+                        "    var sortedEntries:")
+          + "}\n")
     write("CommandBarTermination.swift", "import AppKit\nimport Foundation\n"
           + "extension CommandBarTerminationContract {\nfinal class Host: Fixture {\n"
           + declaration("Sources/Vorssaint/App/AppDelegate.swift", "    func applicationShouldTerminate(")
@@ -591,7 +639,7 @@ def main():
         "    private var hiddenUntilHover:", "    var fullscreenCompact:", "    var idleContent:", "    var hasMusicActivity:", "    var compactActivity:",
         "    var compactActivityGeometry:", "    private func compactGeometry(", "    var compactActivities:",
         "    var compactCompanion:",
-        "    var surfaceSize:", "    func collapse(",
+        "    var surfaceSize:", "    var surfaceShift:", "    func collapse(",
         "    private func detachCaptureIfClosingOnCollapse(", "    func endCaptureControls(",
         "    private func syncVisibleConsumers(", "    private func releaseMonitor("])
     for call in ["NotchSupport.controls", "NotchSupport.watchesMusicActivity", "NotchSupport.idleContent"]:
@@ -675,6 +723,7 @@ def main():
           + declaration(notch, "    var acceptsSystemFeedback:")
           + declaration(notch, "    var showsSystemFeedback:")
           + declaration(notch, "    var usesGlassSurface:")
+          + declaration(notch, "    var lingeringMusic:")
           + declaration(notch, "    var expandedGeometry:").replace("var expandedGeometry", "override var expandedGeometry", 1)
           + declaration(notch, "    private func compactMusicTransition(").replace("private func", "func", 1)
           + declaration(notch, "    private func rememberPresentedMusic(").replace("private func", "func", 1)
@@ -969,7 +1018,7 @@ def main():
           + "final class NotchService {\nstatic var shared = NotchService()\n"
           + "var presentationWindow: NSPanel? = NSPanel()\nvar acceptsSystemFeedback = true\n"
           + "var expanded = true\nvar selected = NotchModule.captures\nvar showingAppPanel = false\n"
-          + "var showingSections = false\nvar selectedMetric: Int?\nvar captureControls: Int?\n"
+          + "var showingSections = false\nvar showingCommandBar = false\nvar selectedMetric: Int?\nvar captureControls: Int?\n"
           + "var captureID: UUID?\nvar captureContent: Bool? = true\n"
           + declaration("Sources/Vorssaint/Services/Notch/NotchService.swift", "    func isCaptureVisible(")
           + "}\nfinal class Preview {\n"

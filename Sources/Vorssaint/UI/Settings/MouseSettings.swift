@@ -481,6 +481,12 @@ struct MouseSettings: View {
                     if middleClick.systemDragGestureConflict {
                         Text(l10n.s.middleClickDragConflict)
                             .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if middleClick.touchDeviceMissing {
+                        Text(l10n.s.middleClickNoTrackpad)
+                            .font(.caption)
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
                     }

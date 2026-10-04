@@ -110,7 +110,7 @@ final class FeatureRuntime: ObservableObject {
             && mayFlip(.notch, to: true)
             && !UserDefaults.standard.bool(forKey: DefaultsKey.notchInitialExtensionsInstalled)
         let requested = firstIslandInstall
-            ? features + AppFeature.dynamicIslandExtensions.filter { !features.contains($0) }
+            ? features + AppFeature.dynamicIslandInitialExtensions.filter { !features.contains($0) }
             : features
         let savedValues = savedPreferences()
         for feature in requested where mayFlip(feature, to: available) {
@@ -368,6 +368,14 @@ final class FeatureRuntime: ObservableObject {
         .notchAgents: {
             if AppFeature.notch.isAvailable { NotchService.shared.syncWithPreferences() }
             else { AgentUsageService.shared.stop() }
+        },
+        .notchWatch: {
+            if AppFeature.notch.isAvailable { NotchService.shared.syncWithPreferences() }
+            else { NotchWatchService.shared.stop() }
+        },
+        // Leaving folds the wings it rests in, and coming back greets.
+        .notchMascot: {
+            if AppFeature.notch.isAvailable { NotchService.shared.syncWithPreferences() }
         },
         .scratchpad: { ScratchpadService.shared.syncWithPreferences() },
         .commandBar: { CommandBarService.shared.syncWithPreferences() },
