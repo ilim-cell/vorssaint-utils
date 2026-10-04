@@ -10,10 +10,17 @@ import Foundation
 enum NotchLockScreenTests {
     static func run(_ suite: TestSuite) {
         sessionContracts(suite)
+        transitionContracts(suite)
         preferenceContracts(suite)
         layoutContracts(suite)
         contentContracts(suite)
         soundContracts(suite)
+    }
+
+    static func transitionContracts(_ suite: TestSuite) {
+        suite.expect(NotchLockScreenSupport.unlockFadeDelay + NotchLockScreenSupport.unlockFadeDuration
+                         <= NotchLockScreenSupport.maximumUnlockIslandLifetime,
+                     "the island leaves soon after the unlock")
     }
 
     static func sessionContracts(_ suite: TestSuite) {
@@ -126,6 +133,11 @@ enum NotchLockScreenTests {
         } else {
             suite.expect(false, "a notched display has room for the padlock")
         }
+        suite.expect(Layout.islandWidth(cameraWidth: 179, panelWidth: 267, expansion: 0) == 179
+               && Layout.islandWidth(cameraWidth: 179, panelWidth: 267, expansion: 0.5) == 223
+               && Layout.islandWidth(cameraWidth: 179, panelWidth: 267, expansion: 1) == 267
+               && Layout.islandWidth(cameraWidth: 179, panelWidth: 267, expansion: .nan) == 179,
+               "the lock-screen island morphs continuously between the camera and its full wings")
         suite.expect(Layout.islandFrame(in: measured, cameraWidth: 0, cameraHeight: 32) == nil
                      && Layout.islandFrame(in: measured, cameraWidth: 179, cameraHeight: .nan) == nil
                      && Layout.islandFrame(in: measured, cameraWidth: 1460, cameraHeight: 32) == nil,

@@ -21,6 +21,7 @@ final class NotchLockScreenModel: ObservableObject {
     /// sleeping and waking, and cleared once it unlocks.
     @Published var playedWhileLocked = false
     @Published var padlockOpen = false
+    @Published var islandWingExpansion: CGFloat = 1
 
     func showsMusic(_ playback: NotchPlayback?) -> Bool {
         gates.music && playback.map {
@@ -41,30 +42,52 @@ struct NotchLockScreenIsland: View {
 
     var body: some View {
         let shoulder = NotchLayout.shoulder(height: size.height)
-        let wing = max(0, (size.width - cameraWidth) / 2 - shoulder)
+        let islandWidth = NotchLockScreenLayout.islandWidth(
+            cameraWidth: cameraWidth, panelWidth: size.width, expansion: model.islandWingExpansion)
+        let wing = max(0, (islandWidth - cameraWidth) / 2 - shoulder)
         let playing = model.showsMusic(music.playback) && music.playback?.isPlaying == true
-        NotchShape(attached: true, radius: NotchLayout.surfaceRadius(height: size.height))
-            .fill(.black)
-            .overlay {
-                HStack(spacing: 0) {
-                    Image(systemName: model.padlockOpen ? "lock.open.fill" : "lock.fill")
-                        .font(.system(size: min(13, size.height * 0.42), weight: .semibold))
-                        .foregroundStyle(.white)
-                        .contentTransition(.symbolEffect(.replace))
-                        .symbolEffect(.bounce, options: .speed(1.4), value: reduceMotion ? false : model.padlockOpen)
-                        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: model.padlockOpen)
-                        .frame(width: wing, height: size.height)
-                    Spacer(minLength: 0)
-                    NotchEqualizerBars(isPlaying: playing, bars: 4, barWidth: 2.5, height: min(12, size.height * 0.38),
-                                       tint: music.artworkTint?.color ?? .white)
-                        .opacity(playing ? 1 : 0)
-                        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: playing)
-                        .frame(width: wing, height: size.height)
-                }
-                .padding(.horizontal, shoulder)
+        ZStack {
+            NotchShape(attached: true, radius: NotchLayout.surfaceRadius(height: size.height))
+                .fill(.black)
+                .frame(width: islandWidth, height: size.height)
+            HStack(spacing: 0) {
+                Image(systemName: model.padlockOpen ? "lock.rotation.open" : "lock.rotation")
+                    .font(.system(size: min(13, size.height * 0.42), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .contentTransition(NotchLockScreenTransition.padlock)
+                    .symbolEffect(.bounce, options: .speed(1.4), value: reduceMotion ? false : model.padlockOpen)
+                    .animation(reduceMotion ? nil : .smooth(duration: NotchLockScreenSupport.unlockSymbolDuration),
+                               value: model.padlockOpen)
+                    .frame(width: 16, height: size.height)
+                    .frame(width: wing, height: size.height)
+                Spacer(minLength: 0)
+                NotchEqualizerBars(isPlaying: playing, bars: 4, barWidth: 2.5, height: min(12, size.height * 0.38),
+                                   tint: music.artworkTint?.color ?? .white)
+                    .opacity(playing ? 1 : 0)
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: playing)
+                    .frame(width: wing, height: size.height)
             }
-            .frame(width: size.width, height: size.height)
-            .accessibilityHidden(true)
+            .padding(.horizontal, shoulder)
+            .frame(width: islandWidth, height: size.height)
+            .clipShape(NotchShape(attached: true, radius: NotchLayout.surfaceRadius(height: size.height)))
+            NotchShape(attached: true, radius: NotchLayout.surfaceRadius(height: size.height))
+                .fill(.black)
+                .frame(width: cameraWidth, height: size.height)
+                .allowsHitTesting(false)
+        }
+        .frame(width: size.width, height: size.height)
+        .animation(reduceMotion ? nil : .smooth(duration: NotchLockScreenSupport.unlockIslandMorphDuration),
+                   value: model.islandWingExpansion)
+        .accessibilityHidden(true)
+    }
+}
+
+private enum NotchLockScreenTransition {
+    static var padlock: ContentTransition {
+        if #available(macOS 15.0, *) {
+            return .symbolEffect(.replace.magic(fallback: .replace))
+        }
+        return .symbolEffect(.replace)
     }
 }
 

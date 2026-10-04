@@ -29,6 +29,7 @@ final class NotchLockScreenService {
     private var playbackSubscription: AnyCancellable?
     private var screenObserver: NSObjectProtocol?
     private var padlockWork: DispatchWorkItem?
+    private var morphWork: DispatchWorkItem?
     private var shownFrames = Frames()
     private var wasLocked = false
 
@@ -96,7 +97,10 @@ final class NotchLockScreenService {
         // Settled before any view reads it, so a padlock about to close is
         // drawn open from its first frame.
         padlockWork?.cancel()
+        morphWork?.cancel()
+        morphWork = nil
         model.padlockOpen = closingPadlock
+        model.islandWingExpansion = closingPadlock ? 0 : 1
         let gates = NotchLockScreenModel.Gates(
             music: NotchLockScreenSupport.showsMusic(), timer: NotchTimerSupport.isEnabled(),
             agents: NotchAgentSupport.showsLiveActivity(),
@@ -140,6 +144,16 @@ final class NotchLockScreenService {
                 panel.animator().alphaValue = 1
             }
         }
+        if closingPadlock {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                    self.model.islandWingExpansion = 1
+                } else {
+                    withAnimation(.smooth(duration: 0.35)) { self.model.islandWingExpansion = 1 }
+                }
+            }
+        }
         playbackSubscription = NotchMusicService.shared.$playback
             .receive(on: DispatchQueue.main)
             .sink { [weak self] playback in
@@ -178,6 +192,8 @@ final class NotchLockScreenService {
         screenObserver = nil
         padlockWork?.cancel()
         padlockWork = nil
+        morphWork?.cancel()
+        morphWork = nil
         guard let space else { return }
         let scene = scene, island = island
         self.scene = []
@@ -188,22 +204,32 @@ final class NotchLockScreenService {
             space.close()
             return
         }
-        // The lock screen is gone about 0.3 s after the unlock is announced;
-        // the player leaves with it rather than lingering over the desktop.
-        // The padlock opens first, then the island underneath takes over.
+        // The player and activities fade with the lock screen. The island stays
+        // over the desktop and regular island while it contracts and fades.
         var remaining = scene.count + (island == nil ? 0 : 1)
         let finished = { remaining -= 1; if remaining == 0 { space.close() } }
         scene.forEach { Self.fadeOut($0, after: 0, completion: finished) }
         if let island {
             model.padlockOpen = true
-            Self.fadeOut(island, after: 0.55, completion: finished)
+            let work = DispatchWorkItem { [weak self, weak island] in
+                guard let self, island != nil, self.model.padlockOpen else { return }
+                if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                    withAnimation(.smooth(duration: NotchLockScreenSupport.unlockIslandMorphDuration)) {
+                        self.model.islandWingExpansion = 0
+                    }
+                }
+            }
+            morphWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + NotchLockScreenSupport.unlockIslandMorphStartDelay,
+                                          execute: work)
+            Self.fadeOut(island, after: NotchLockScreenSupport.unlockFadeDelay, completion: finished)
         }
     }
 
     private static func fadeOut(_ panel: NSPanel, after delay: TimeInterval, completion: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2
+                context.duration = NotchLockScreenSupport.unlockFadeDuration
                 panel.animator().alphaValue = 0
             }, completionHandler: {
                 panel.orderOut(nil)

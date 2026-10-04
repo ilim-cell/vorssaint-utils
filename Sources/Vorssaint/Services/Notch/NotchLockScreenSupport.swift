@@ -18,6 +18,13 @@ enum NotchLockScreenSupport {
     /// at this level is drawn over the lock screen; the same window without
     /// it, even at the shielding window level, stays behind it.
     static let spaceLevel: Int32 = 400
+    static let unlockSymbolDuration: TimeInterval = 0.35
+    static let unlockSettleDelay: TimeInterval = 0.12
+    static let unlockIslandMorphDuration: TimeInterval = 0.35
+    static let unlockFadeDuration: TimeInterval = 0.2
+    static let maximumUnlockIslandLifetime: TimeInterval = 1.1
+    static var unlockIslandMorphStartDelay: TimeInterval { unlockSymbolDuration + unlockSettleDelay }
+    static var unlockFadeDelay: TimeInterval { unlockIslandMorphStartDelay + unlockIslandMorphDuration }
 
     static func isEnabled(in defaults: UserDefaults = .standard) -> Bool {
         NotchSupport.isEnabled(in: defaults) && defaults.bool(forKey: DefaultsKey.notchLockScreen)
@@ -130,5 +137,11 @@ enum NotchLockScreenLayout {
         guard width > cameraWidth else { return nil }
         // Centred on the camera to the half point: a notch only comes on Retina displays.
         return CGRect(x: screen.midX - width / 2, y: screen.maxY - cameraHeight, width: width, height: cameraHeight)
+    }
+
+    static func islandWidth(cameraWidth: CGFloat, panelWidth: CGFloat, expansion: CGFloat) -> CGFloat {
+        guard cameraWidth.isFinite, cameraWidth > 0, panelWidth.isFinite else { return 0 }
+        let progress = expansion.isFinite ? min(1, max(0, expansion)) : 0
+        return cameraWidth + max(0, panelWidth - cameraWidth) * progress
     }
 }
