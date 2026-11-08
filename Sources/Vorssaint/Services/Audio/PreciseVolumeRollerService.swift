@@ -85,7 +85,7 @@ final class PreciseVolumeRollerService: ObservableObject {
             return service.handle(type: type, event: event)
         }
         guard let created = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+            tap: NotchSupport.systemIndicatorEventTapLocation,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(1 << systemDefined.rawValue),

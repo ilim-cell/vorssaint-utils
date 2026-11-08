@@ -31,10 +31,12 @@ enum SliderScrollRoutingTests {
         }
     }
 
-    private static func event(_ phase: CGScrollPhase, delta: Int32 = 0) -> NSEvent {
-        let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
-                         wheel1: delta, wheel2: 0, wheel3: 0)!
+    private static func event(_ phase: CGScrollPhase, delta: Int32 = 0, horizontalDelta: Int32 = 0,
+                              continuous: Bool = false) -> NSEvent {
+        let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: horizontalDelta == 0 ? 1 : 2,
+                         wheel1: delta, wheel2: horizontalDelta, wheel3: 0)!
         cg.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(phase.rawValue))
+        cg.setIntegerValueField(.scrollWheelEventIsContinuous, value: continuous ? 1 : 0)
         return NSEvent(cgEvent: cg)!
     }
 
@@ -53,9 +55,9 @@ enum SliderScrollRoutingTests {
             target.light.keyboardLightLevel = 0.8
             target.light.lastKeyboardLightLevel = 0.8
             target.callbacks = []
-            slider.scrollWheel(with: event(.began))
-            slider.scrollWheel(with: event(.changed, delta: -120))
-            slider.scrollWheel(with: event(.changed, delta: -200))
+            slider.scrollWheel(with: event(.began, continuous: true))
+            slider.scrollWheel(with: event(.changed, delta: -120, continuous: true))
+            slider.scrollWheel(with: event(.changed, delta: -200, continuous: true))
         }
         begin()
         suite.expect(slider.doubleValue == 0 && target.light.keyboardLightLevel == 0
@@ -69,6 +71,18 @@ enum SliderScrollRoutingTests {
         slider.scrollWheel(with: event(.cancelled))
         suite.expect(target.callbacks == [true, false] && target.light.lastKeyboardLightLevel == 0.8,
                      "a cancelled scroll closes the edit once and preserves restoration")
+
+        slider.cancelScroll()
+        slider.doubleValue = 0.5
+        target.callbacks = []
+        slider.scrollWheel(with: event(.began))
+        slider.scrollWheel(with: event(.changed, horizontalDelta: -20, continuous: true))
+        suite.expect(abs(slider.doubleValue - 0.6) < 0.0001 && target.callbacks == [true],
+                     "a horizontal two-finger swipe moves the level along the slider and keeps its edit open")
+        slider.scrollWheel(with: event(.ended))
+        suite.expect(target.callbacks == [true, false],
+                     "ending a horizontal two-finger swipe commits the level edit once")
+
         begin()
         slider.isEnabled = false
         slider.scrollWheel(with: event(.changed, delta: 50))

@@ -12,7 +12,7 @@ struct UninstallerView: View {
     @ObservedObject private var homebrew = HomebrewManager.shared
     @ObservedObject private var permissions = Permissions.shared
     @AppStorage(DefaultsKey.uninstallerCommandBarEnabled) private var commandBarEnabled = false
-    @AppStorage(DefaultsKey.uninstallerTrashDetectionEnabled) private var trashDetectionEnabled = true
+    @AppStorage(DefaultsKey.uninstallerWatchesTrash) private var watchesTrash = false
     @State private var dropTargeted = false
     @State private var showingAppPicker = false
     @State private var pendingHomebrewRemoval: AppUninstaller.HomebrewRemovalConfirmation?
@@ -51,16 +51,13 @@ struct UninstallerView: View {
     // MARK: Empty / drop
 
     private var commandBarToggle: some View {
-        Form {
-            Section {
-                Toggle(l10n.s.uninstallerCommandBarToggle, isOn: $commandBarEnabled)
-                Text(l10n.s.uninstallerCommandBarCaption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        SettingsCard {
+            SettingsRow(symbol: "command", title: l10n.s.uninstallerCommandBarToggle,
+                        caption: l10n.s.uninstallerCommandBarCaption) {
+                Toggle("", isOn: $commandBarEnabled)
+                    .labelsHidden()
             }
         }
-        .formStyle(.grouped)
-        .fixedSize(horizontal: false, vertical: true)
         .frame(width: 360)
     }
 
@@ -77,7 +74,7 @@ struct UninstallerView: View {
                 .frame(width: 360, height: 200)
                 .overlay(
                     VStack(spacing: 12) {
-                        Image(systemName: "trash.square")
+                        Image(systemName: dropTargeted ? "checkmark.circle.fill" : "arrow.down.app")
                             .font(.system(size: 44, weight: .light))
                             .foregroundStyle(dropTargeted ? Color.accentColor : .secondary)
                         Text(l10n.s.uninstallerDropTitle)
@@ -124,19 +121,16 @@ struct UninstallerView: View {
     }
 
     private var trashDetectionToggle: some View {
-        Form {
-            Section {
-                Toggle(l10n.s.uninstallerTrashDetectionTitle, isOn: $trashDetectionEnabled)
-                Text(l10n.s.uninstallerTrashDetectionCaption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        SettingsCard {
+            SettingsRow(symbol: "trash", title: l10n.s.uninstallerWatchTrashToggle,
+                        caption: l10n.s.uninstallerWatchTrashCaption) {
+                Toggle("", isOn: $watchesTrash)
+                    .labelsHidden()
             }
         }
-        .formStyle(.grouped)
-        .fixedSize(horizontal: false, vertical: true)
         .frame(width: 360)
-        .onChange(of: trashDetectionEnabled) { _, enabled in
-            TrashSuggestionService.shared.setEnabled(enabled)
+        .onChange(of: watchesTrash) { _, _ in
+            TrashAppWatcher.shared.syncWithPreferences()
         }
     }
 

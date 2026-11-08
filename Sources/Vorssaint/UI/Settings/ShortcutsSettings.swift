@@ -7,13 +7,16 @@ import SwiftUI
 /// feature. It writes the same preferences as each feature page, so there is
 /// still one setting and one registration path for every action.
 struct ShortcutsSettings: View {
+    var focus: AppFeature? = nil
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var features = FeatureRuntime.shared
     @ObservedObject private var superKey = SuperKeyService.shared
     @ObservedObject private var router = SettingsRouter.shared
+    @ObservedObject private var hotkeys = HotkeyManager.shared
     @AppStorage(DefaultsKey.keyboardBrightnessShortcutsEnabled) private var keyboardBrightnessShortcutsEnabled = false
     @AppStorage(DefaultsKey.keepAwakeShortcut) private var keepAwakeShortcut = GlobalShortcut.keepAwakeDefault.storageValue
     @AppStorage(DefaultsKey.snippetLibraryShortcut) private var snippetLibraryShortcut = GlobalShortcut.snippetLibraryDefault.storageValue
+    @AppStorage(DefaultsKey.hotkeyEnabled) private var hotkeyEnabled = true
     /// Keyed by group too: brightness has a row in two groups, and each opens on its own.
     @State private var expandedFeatures: [FeatureGroup: Set<AppFeature>] = [.tools: [.screenshot]]
     @State private var showsAppShortcuts = false
@@ -40,35 +43,60 @@ struct ShortcutsSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                Text(l10n.s.shortcutsPageCaption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            ForEach(visibleGroups, id: \.self) { group in
-                Section(groupTitle(group)) {
-                    ForEach(featuresWithShortcuts(in: group), id: \.self) { feature in
-                        if feature == .screenshot {
-                            captureGroupRows
-                        } else {
-                            featureRows(feature, in: group)
+            if router.destination.sectionAnchor == .keyboardBrightnessShortcuts {
+                Section(FeatureStrings.brightness(l10n.language).keyboardLight) {
+                    KeyboardBrightnessShortcutToggle(isEnabled: $keyboardBrightnessShortcutsEnabled)
+                    ForEach(availableRoles.filter(\.isKeyboardBrightness)) { role in
+                        roleRow(role, showsFeatureContext: false)
+                    }
+                }
+            } else {
+                if AppFeature.keepAwake.isAvailable,
+                   let role = availableRoles.first(where: { $0 == .keepAwake }) {
+                    Section(l10n.s.globalHotkeySection) {
+                        SettingsRow(symbol: "keyboard", title: l10n.s.hotkeyToggle,
+                                    caption: l10n.s.hotkeyCaption) {
+                            Toggle(l10n.s.hotkeyToggle, isOn: $hotkeyEnabled)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .onChange(of: hotkeyEnabled) { _, enabled in
+                                    HotkeyManager.shared.setEnabled(enabled)
+                                }
+                        }
+                        roleRow(role, showsFeatureContext: false, isEnabled: hotkeyEnabled)
+                        if hotkeyEnabled, hotkeys.registrationFailed {
+                            Text(l10n.s.shortcutUnavailable)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .padding(.leading, settingsRowTextInset)
                         }
                     }
                 }
-            }
 
-            if AppFeature.commandBar.isAvailable {
-                Section {
-                    Button {
-                        showsAppShortcuts = true
-                    } label: {
-                        Label(FeatureStrings.commandBar(l10n.language).appCenterTitle,
-                              systemImage: "app.badge")
+                ForEach(visibleGroups, id: \.self) { group in
+                    Section(groupTitle(group)) {
+                        ForEach(featuresWithShortcuts(in: group), id: \.self) { feature in
+                            if feature == .screenshot {
+                                captureGroupRows
+                            } else {
+                                featureRows(feature, in: group)
+                            }
+                        }
                     }
-                    Text(FeatureStrings.commandBar(l10n.language).appCenterCaption)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                }
+
+                if AppFeature.commandBar.isAvailable {
+                    Section {
+                        Button {
+                            showsAppShortcuts = true
+                        } label: {
+                            Label(FeatureStrings.commandBar(l10n.language).appCenterTitle,
+                                  systemImage: "app.badge")
+                        }
+                        Text(FeatureStrings.commandBar(l10n.language).appCenterCaption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -82,6 +110,7 @@ struct ShortcutsSettings: View {
 
     private func featuresWithShortcuts(in group: FeatureGroup) -> [AppFeature] {
         AppFeature.allCases.filter { feature in
+            if feature == .keepAwake { return false }
             // The screenshot slot anchors the combined capture group; the
             // other capture tools render inside it instead of on their own.
             if feature == .screenshot { return group == .tools && !captureRoles.isEmpty }
@@ -218,7 +247,8 @@ struct ShortcutsSettings: View {
 
     private func roleRow(_ role: GlobalShortcutRole,
                          showsFeatureContext: Bool = true,
-                         reservesClearButtonSpace: Bool = false) -> some View {
+                         reservesClearButtonSpace: Bool = false,
+                         isEnabled: Bool? = nil) -> some View {
         let title = role.title(l10n.s)
         let featureTitle = role.feature.hubTitle(l10n.s, hub: hub)
         let active = hasAssignedShortcut(role) && role.requiredEnableKeys.allSatisfy {
@@ -226,7 +256,7 @@ struct ShortcutsSettings: View {
         }
         return ShortcutPreferenceRow(
             role: role,
-            isEnabled: !role.isKeyboardBrightness || keyboardBrightnessShortcutsEnabled,
+            isEnabled: isEnabled ?? (!role.isKeyboardBrightness || keyboardBrightnessShortcutsEnabled),
             label: title,
             symbolName: role.isKeyboardBrightness ? "keyboard" : role.feature.symbolName,
             contextLabel: showsFeatureContext && title != featureTitle ? featureTitle : nil,

@@ -50,9 +50,17 @@ enum StorageFeatureTests {
         for path in ["Sources/Vorssaint/UI/Uninstall/UninstallerView.swift",
                      "Sources/Vorssaint/UI/MenuPanel/PanelUninstallerView.swift"] {
             let source = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
-            suite.expect(source.contains("UninstallFailureNote(items:"),
+            let doneState: String
+            if let start = source.range(of: "private func doneState("),
+               let end = source[start.upperBound...].range(of: "\n    private func ") {
+                doneState = String(source[start.lowerBound..<end.lowerBound])
+            } else {
+                doneState = ""
+            }
+            suite.expect(doneState.contains("UninstallFailureNote(items:"),
                    "\(path) names what the removal left behind")
-            suite.expect(!source.contains("\"checkmark.circle.fill\""),
+            suite.expect(doneState.contains("UninstallerSupport.doneSymbol(")
+                         && !doneState.contains("\"checkmark.circle.fill\""),
                    "\(path) takes its done symbol from UninstallerSupport")
         }
         let sharedUISource = (try? String(contentsOfFile: "Sources/Vorssaint/UI/SharedUI.swift",

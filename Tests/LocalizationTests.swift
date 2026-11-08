@@ -10,6 +10,57 @@ enum LocalizationTests {
         (.zhHans, .zhHans), (.zhTW, .zhTW), (.zhHK, .zhHK),
     ]
 
+    static let awakeActionLabels: [(AppLanguage, String, String)] = [
+        (.enUS, "Prevent sleep", "Allow normal sleep"),
+        (.ptBR, "Evitar suspensão", "Permitir suspensão normal"),
+        (.tr, "Uykuya geçmeyi önle", "Normal uykuya izin ver"),
+        (.ru, "Не допускать сна", "Разрешить обычный сон"),
+        (.es, "Evitar la suspensión", "Permitir la suspensión normal"),
+        (.sk, "Zabrániť uspaniu", "Povoliť bežný spánok"),
+        (.de, "Ruhezustand verhindern", "Normalen Ruhezustand zulassen"),
+        (.fr, "Empêcher la veille", "Autoriser la veille normale"),
+        (.it, "Impedisci la sospensione", "Consenti la sospensione normale"),
+        (.ja, "スリープを防止", "通常のスリープを許可"),
+        (.ko, "잠자기 방지", "일반 잠자기 허용"),
+        (.uk, "Не допускати сну", "Дозволити звичайний сон"),
+        (.zhHans, "防止 Mac 进入睡眠", "允许 Mac 正常睡眠"),
+        (.zhTW, "防止 Mac 進入睡眠", "允許 Mac 正常睡眠"),
+        (.zhHK, "防止 Mac 進入睡眠", "允許 Mac 正常睡眠"),
+    ]
+
+    static let notchBehaviorLabels: [(AppLanguage, String, String, String, String)] = [
+        (.enUS, "Reopen to", "Always reopen to the last page", "After this time, reopen to",
+         "If no activity is showing, the island opens to this page after the last page is no longer remembered."),
+        (.ptBR, "Reabrir em", "Sempre reabrir na última página", "Após esse tempo, reabrir em",
+         "Se não houver atividade visível, a ilha abrirá nesta página quando a última página deixar de ser lembrada."),
+        (.tr, "Yeniden açılacak yer", "Her zaman son sayfayı aç", "Bu süreden sonra açılacak sayfa",
+         "Görünür bir etkinlik yoksa, son sayfayı hatırlama süresi dolduğunda ada bu sayfada açılır."),
+        (.ru, "Открывать повторно на", "Всегда открывать последнюю страницу", "После этого срока открывать на",
+         "Если активность не отображается, по истечении срока запоминания островок откроется на этой странице."),
+        (.es, "Reabrir en", "Reabrir siempre en la última página", "Después de este tiempo, reabrir en",
+         "Si no hay ninguna actividad visible, la isla se abre en esta página cuando deja de recordar la última."),
+        (.sk, "Znovu otvoriť na stránke", "Vždy znovu otvoriť poslednú stránku", "Po uplynutí tohto času otvoriť na",
+         "Ak sa nezobrazuje žiadna aktivita, po uplynutí času zapamätania poslednej stránky sa ostrovček otvorí na tejto stránke."),
+        (.de, "Erneut öffnen in", "Immer die letzte Seite öffnen", "Nach diesem Zeitraum öffnen in",
+         "Wenn keine Aktivität angezeigt wird, öffnet sich die Insel nach Ablauf der Merkdauer auf dieser Seite."),
+        (.fr, "Rouvrir sur", "Toujours rouvrir sur la dernière page", "Après ce délai, rouvrir sur",
+         "Si aucune activité n’est affichée, l’île s’ouvre sur cette page après l’expiration du délai de mémorisation."),
+        (.it, "Riapri in", "Riapri sempre sull’ultima pagina", "Dopo questo intervallo, riapri in",
+         "Se non è visibile un’attività, dopo la scadenza del tempo di memorizzazione l’isola si apre su questa pagina."),
+        (.ja, "再度開いたときのページ", "常に前回のページを開く", "この時間が過ぎた後に開くページ",
+         "アクティビティが表示されていない場合、前回のページを記憶する時間が過ぎると、このページが開きます。"),
+        (.ko, "다시 열 때 표시할 페이지", "항상 마지막 페이지로 열기", "이 시간이 지난 후 열 페이지",
+         "표시 중인 활동이 없으면 마지막 페이지 기억 시간이 지난 후 이 페이지가 열립니다."),
+        (.uk, "Відкривати повторно на", "Завжди відкривати останню сторінку", "Після цього часу відкривати на",
+         "Якщо активність не відображається, після завершення часу запам’ятовування островець відкриється на цій сторінці."),
+        (.zhHans, "重新打开时显示", "始终打开上次页面", "超过此时间后打开",
+         "如果当前没有显示活动，记忆上次页面的时间结束后，岛会打开此页面。"),
+        (.zhTW, "重新開啟時顯示", "一律開啟上次頁面", "超過此時間後開啟",
+         "如果目前沒有顯示活動，記憶上次頁面的時間結束後，小島會開啟此頁面。"),
+        (.zhHK, "重新開啟時顯示", "一律開啟上次頁面", "超過此時間後開啟",
+         "如果目前沒有顯示活動，記憶上次頁面的時間結束後，小島會開啟此頁面。"),
+    ]
+
     static func fields(_ value: Any) -> [String: String] {
         Dictionary(uniqueKeysWithValues: Mirror(reflecting: value).children.compactMap {
             guard let name = $0.label, let text = $0.value as? String else { return nil }
@@ -56,6 +107,25 @@ enum LocalizationTests {
 
     static func run(_ suite: TestSuite) {
         formattingChecks(suite)
+        for (language, reopening, alwaysLastPage, afterLastPage, hint) in notchBehaviorLabels {
+            let strings = FeatureStrings.notchEditor(language)
+            suite.expect(strings.reopening == reopening,
+                         "the reopening picker names its destination in \(language.rawValue)")
+            suite.expect(strings.alwaysReopenLastPage == alwaysLastPage,
+                         "the last-page toggle states its outcome in \(language.rawValue)")
+            suite.expect(strings.afterLastPageExpires == afterLastPage,
+                         "the expired-page picker names its outcome in \(language.rawValue)")
+            suite.expect(strings.rememberLastPageHint == hint,
+                         "the remembered-page hint clarifies the activity exception in \(language.rawValue): "
+                         + "\(strings.rememberLastPageHint.debugDescription) != \(hint.debugDescription)")
+        }
+        for (language, preventSleep, allowSleep) in awakeActionLabels {
+            let strings = Strings.localized(language)
+            suite.expect(strings.menuEnableAwake == preventSleep,
+                         "the enable action describes preventing sleep in \(language.rawValue)")
+            suite.expect(strings.menuDisableAwake == allowSleep,
+                         "the disable action describes allowing normal sleep in \(language.rawValue)")
+        }
         suite.expect(Set(languages.map { $0.0 }) == Set(AppLanguage.allCases)
                      && languages.count == AppLanguage.allCases.count,
                      "the base strings cover each app language exactly once")
@@ -85,6 +155,7 @@ enum LocalizationTests {
             check(strings, against: Strings.enUS, name: "strings/\(language.rawValue)", suite: suite)
             let additional: [(String, (AppLanguage) -> Any)] = [
                 ("imageConverter", { MediaImageConverterStrings.localized($0) }),
+                ("notchEditor", { FeatureStrings.notchEditor($0) }),
                 ("directionalLayout", { WindowDirectionalStrings.localized($0) }),
                 ("stageManager", { WindowStageManagerStrings.localized($0) }),
                 ("edgeSnapRestore", { WindowEdgeSnapRestoreStrings.localized($0) }),

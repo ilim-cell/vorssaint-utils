@@ -95,6 +95,7 @@ struct AudioPriorityDisclosure: View {
                 .controlSize(.mini)
                 .help(help)
                 .accessibilityLabel(help)
+                .modifier(FeaturePrimaryToggleModifier(feature: .audioPriority))
         }
     }
 

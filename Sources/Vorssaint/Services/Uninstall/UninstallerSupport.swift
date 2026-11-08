@@ -1,35 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
+import CoreFoundation
 import Darwin
 import Foundation
-
-enum TrashSuggestionPresentation: String {
-    case notch
-    case window
-
-    static var current: Self {
-        Self(rawValue: UserDefaults.standard.string(forKey: DefaultsKey.trashSuggestionPresentation) ?? "")
-            ?? .notch
-    }
-}
-
-enum TrashSuggestionSupport {
-    static func appURLs(in trashURL: URL, fileManager: FileManager = .default) -> [URL] {
-        (try? fileManager.contentsOfDirectory(
-            at: trashURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ))?.filter { url in
-            guard url.pathExtension.caseInsensitiveCompare("app") == .orderedSame else { return false }
-            return (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-        } ?? []
-    }
-
-    static func newlyTrashedApps(current: [URL], knownPaths: Set<String>) -> [URL] {
-        current.filter { !knownPaths.contains($0.standardizedFileURL.path) }
-    }
-}
 
 /// Pure ownership and leftover-matching rules for the Uninstaller. Bundle
 /// identifiers never become paths by concatenation with a display name;
@@ -214,6 +188,16 @@ enum UninstallerSupport {
         try? evaluate(appURL).get()
     }
 
+    /// Bundle(url:) caches metadata by path. Reading the Info.plist directly
+    /// avoids mistaking a replacement app for the bundle formerly at that path.
+    static func infoDictionary(of bundleURL: URL) -> [String: Any]? {
+        CFBundleCopyInfoDictionaryInDirectory(bundleURL as CFURL) as? [String: Any]
+    }
+
+    static func bundleIdentifier(of bundleURL: URL) -> String? {
+        infoDictionary(of: bundleURL)?["CFBundleIdentifier"] as? String
+    }
+
     /// The selection, or the rule that refused it.
     static func evaluate(_ appURL: URL) -> Result<Selection, Refusal> {
         // Browser links are not bundles on disk and must be refused before loading one.
@@ -226,13 +210,13 @@ enum UninstallerSupport {
         // Something named like an app that does not read as one is still
         // reported as an app, never as a stray document.
         let unreadable: Refusal = appURL.pathExtension.lowercased() == "app" ? .unidentified : .notAnApp
-        guard let bundle = Bundle(url: appURL) else { return .failure(unreadable) }
+        guard let info = infoDictionary(of: appURL) else { return .failure(unreadable) }
         // System apps are SIP-protected and their support data is live OS
         // state; removing either would be wrong, so refuse the selection.
         guard !InstalledApps.isSystemApplication(at: appURL) else { return .failure(.systemApp) }
         // Only a verified bundle identifier becomes a path component. A
         // display name is presentation only and can never claim user data.
-        guard let rawBundleID = bundle.bundleIdentifier,
+        guard let rawBundleID = info["CFBundleIdentifier"] as? String,
               CleanerSupport.looksLikeBundleID(rawBundleID) else { return .failure(unreadable) }
         guard let bundleID = verifiedBundleID(rawBundleID) else {
             return .failure(isOwnBundleID(rawBundleID) ? .thisApp : .sharedIdentifier)
@@ -252,8 +236,8 @@ enum UninstallerSupport {
     /// The Info.plist that holds the identifier a selection verified. A Mac
     /// app keeps it in Contents. An iPhone or iPad app installed on a Mac
     /// with Apple silicon is a wrapper instead: the real bundle sits in its
-    /// Wrapper folder with the Info.plist at the top, and Bundle reads it
-    /// through the WrappedBundle link even when a Contents folder exists too.
+    /// Wrapper folder with the Info.plist at the top, and bundle metadata
+    /// lookup follows the WrappedBundle link even when Contents exists too.
     static func infoPlistURL(in appURL: URL) -> URL {
         guard let wrapped = wrappedBundleURL(in: appURL) else {
             return appURL.appendingPathComponent("Contents/Info.plist")
@@ -264,9 +248,8 @@ enum UninstallerSupport {
             : contents.appendingPathComponent("Info.plist")
     }
 
-    /// The bundle a wrapper's WrappedBundle link names. Bundle follows only a
-    /// relative link to an app inside the Wrapper folder, and only with a
-    /// lowercase .app, so nothing else counts as a wrapper here either.
+    /// The bundle a wrapper's WrappedBundle link names. Only a relative link
+    /// to a .app inside the Wrapper folder counts as a wrapper here.
     static func wrappedBundleURL(in appURL: URL) -> URL? {
         let link = appURL.appendingPathComponent("WrappedBundle")
         guard isSymbolicLink(link),
@@ -388,7 +371,58 @@ enum UninstallerSupport {
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             home.appendingPathComponent("Applications", isDirectory: true),
         ].map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
-        return roots.contains { path.hasPrefix($0 + "/") }
+        return roots.contains { path.hasPrefix($0 + "/") } || isInTrash(url, home: home)
+    }
+
+    static func trashURL(home: URL) -> URL {
+        home.appendingPathComponent(".Trash", isDirectory: true)
+    }
+
+    /// Only apps Finder placed directly in Trash count as trusted install roots.
+    static func isInTrash(_ url: URL, home: URL) -> Bool {
+        let parent = url.resolvingSymlinksInPath().standardizedFileURL.deletingLastPathComponent().path
+        let trash = trashURL(home: home).resolvingSymlinksInPath().standardizedFileURL.path
+        return parent == trash
+    }
+
+    static func shouldSelectAppByDefault(_ appURL: URL, home: URL) -> Bool {
+        !isInTrash(appURL, home: home)
+    }
+
+    static func trashedApps(in trash: URL, fileManager: FileManager = .default) -> [URL] {
+        let entries = (try? fileManager.contentsOfDirectory(
+            at: trash, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        return entries.filter { url in
+            url.pathExtension.caseInsensitiveCompare("app") == .orderedSame
+                && (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        }
+    }
+
+    static func newlyTrashedApps(current: [URL], known: Set<String>) -> [URL] {
+        current.filter { !known.contains($0.standardizedFileURL.path) }
+    }
+
+    static func pendingTrashedApps(current: [URL], known: Set<String>,
+                                   pending: [String: URL]) -> (known: Set<String>, pending: [String: URL]) {
+        let currentByPath = Dictionary(
+            current.map { ($0.standardizedFileURL.path, $0) },
+            uniquingKeysWith: { first, _ in first })
+        var nextPending = pending.filter { currentByPath[$0.key] != nil }
+        for app in newlyTrashedApps(current: current, known: known) {
+            nextPending[app.standardizedFileURL.path] = app
+        }
+        return (Set(currentByPath.keys), nextPending)
+    }
+
+    static func retryDelay(forAttempt attempt: Int) -> TimeInterval {
+        min(pow(2.0, Double(max(0, min(attempt, 5)))), 30)
+    }
+
+    static func trashedAppWasLastCopy(otherCopies: [URL], home: URL,
+                                      fileExists: (String) -> Bool) -> Bool {
+        !otherCopies.contains { copy in
+            !isInTrash(copy, home: home) && fileExists(copy.standardizedFileURL.path)
+        }
     }
 
     static func strippedAppName(_ raw: String) -> String {
@@ -428,6 +462,8 @@ enum UninstallerSupport {
             if withoutVersion.count >= 3, !ignoredLastComponents.contains(withoutVersion) { names.insert(withoutVersion) }
         }
         let primary = primaryBundleID ?? (bundleIDs.count == 1 ? bundleIDs.first : nil)
+        var exactBundleIDs = bundleIDs
+        if let primary, !primary.isEmpty { exactBundleIDs.insert(primary) }
         if let primary, let last = primary.split(separator: ".").last {
             let token = normalizedToken(String(last))
             if token.count >= 4, !ignoredLastComponents.contains(token) {
@@ -435,7 +471,7 @@ enum UninstallerSupport {
             }
         }
         let teams = Set(teamIDs.map { $0.uppercased() }.filter(CleanerSupport.isTeamIdentifier))
-        return Identity(bundleIDs: bundleIDs, nameTokens: names, teamIDs: teams, groupIDs: groupIDs)
+        return Identity(bundleIDs: exactBundleIDs, nameTokens: names, teamIDs: teams, groupIDs: groupIDs)
     }
 
     static func technicalIdentity(_ identity: Identity) -> Identity {

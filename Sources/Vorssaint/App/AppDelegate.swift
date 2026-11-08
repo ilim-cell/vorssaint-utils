@@ -174,7 +174,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // One binding per feature: only available features are touched, so a
         // feature switched off in the hub never even instantiates here.
         FeatureRuntime.shared.syncAtLaunch()
-        TrashSuggestionService.shared.start()
         if AppFeature.monitorPower.isAvailable, PowerSampler.hasInternalBattery {
             MaxCapacityProbe.shared.refreshIfStale()
         }
@@ -191,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 FeatureRuntime.shared.sync([
                     .scrollInverter, .scrollHorizontal, .scrollZoom, .focusFollowsMouse, .smoothScroll, .linearScroll, .mouseNavigation, .switcher,
                     .dockPreview, .finderCutPaste, .finderRename, .autoQuit, .dockClick,
-                    .middleClick, .windowMaximizer, .keyboardDebounce, .windowLayout,
+                    .middleClick, .windowMaximizer, .keyboardDebounce, .keyRemapping, .windowLayout,
                     .textSnippets, .brightness, .radialMenu, .mouseButtonShortcuts,
                     .mouseClickDebounce, .superKey, .quitWindowProtection, .mixer, .musicBlock, .notch,
                 ])
@@ -204,6 +203,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .sink { _ in
                 FeatureRuntime.shared.sync([.dockPreview, .screenRecorder])
             }
+            .store(in: &cancellables)
+
+        Permissions.shared.$fullDiskAccess
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { _ in FeatureRuntime.shared.sync([.uninstaller]) }
             .store(in: &cancellables)
 
         // Keep the menu titles in step with the in-app language.
@@ -315,7 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     func applicationWillTerminate(_ notification: Notification) {
         isTerminating = true
-        TrashSuggestionService.shared.stop()
+        TrashAppWatcher.shared.stop()
         CommandBarService.shared.restoreBorrowedInputSource()
         if AppFeature.notch.isAvailable { NotchService.shared.stop(restoreCapture: false) }
         // Quitting properly means the start worked, whenever it happened.
@@ -330,6 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         WindowMaximizer.shared.stop()
         WindowLayoutService.shared.suspend()
         KeyboardDebounceService.shared.suspend()
+        KeyboardRemappingService.shared.suspend()
         MouseClickDebounceService.shared.suspend()
         TextSnippetService.shared.suspend()
         // Takes the Super key mapping back out before the process goes away.
@@ -1727,11 +1733,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         openSettingsWindow()
     }
 
-    func openUninstaller(for appURL: URL) {
-        guard AppFeature.uninstaller.isAvailable else { return }
+    @discardableResult
+    func openUninstaller(for appURL: URL) -> Bool {
+        guard AppFeature.uninstaller.isAvailable else { return false }
+        let uninstaller = AppUninstaller.shared
+        guard uninstaller.select(appURL: appURL) || uninstaller.isRemoving else { return false }
         SettingsRouter.shared.page = .uninstaller
-        AppUninstaller.shared.select(appURL: appURL)
         openSettingsWindow()
+        return true
     }
 
     @objc private func menuOpenShelf() {
@@ -1756,9 +1765,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
+    @objc private func menuOpenHelp() {
+        NSWorkspace.shared.open(AppInfo.websiteURL)
+    }
+
     // MARK: - Application menu
 
-    /// Builds and installs the standard application menu (App / Edit / Go / Window).
+    /// Builds and installs the standard application menu (App / Edit / Go / Window / Help).
     ///
     /// Because the app runs as an accessory, AppKit never gives it the default main
     /// menu a regular app gets, so `NSApp.mainMenu` stays nil and the standard key
@@ -1837,8 +1850,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         windowMenu.addItem(NSMenuItem(title: strings.menuClose,
                                       action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
 
+        let helpMenuItem = NSMenuItem(title: strings.menuHelp, action: nil, keyEquivalent: "")
+        let helpMenu = NSMenu(title: strings.menuHelp)
+        let appHelp = NSMenuItem(title: strings.menuAppHelp, action: #selector(menuOpenHelp), keyEquivalent: "")
+        appHelp.target = self
+        helpMenu.addItem(appHelp)
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+
         NSApp.mainMenu = mainMenu
         NSApp.windowsMenu = windowMenu
+        NSApp.helpMenu = helpMenu
     }
 
     // MARK: - Windows
@@ -1852,7 +1874,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             : nil) ?? NSScreen.withMouse
         let createdWindow = settingsWindow == nil
         if settingsWindow == nil {
-            let host = NSHostingController(rootView: SettingsView())
+            let settingsUndoManager = UndoManager()
+            let host = NSHostingController(
+                rootView: SettingsView(sidebarUndoManager: settingsUndoManager))
             // Empty on purpose: any automatic option here (.intrinsicContentSize,
             // .maxSize, .preferredContentSize) lets SwiftUI's content - which
             // varies wildly page to page, from a short toggle list to Kill
@@ -1862,6 +1886,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             // explicit sizing below plus ordinary user drag-resize.
             host.sizingOptions = []
             let window = SettingsWindow(contentViewController: host)
+            window.settingsUndoManager = settingsUndoManager
             window.isMouseButtonCaptureActive = { MouseButtonShortcutService.isCaptureActive }
             // .miniaturizable so the Window menu's Minimize (Cmd+M) actually works.
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
@@ -2180,12 +2205,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         })
         host.sizingOptions = .preferredContentSize
         let window = NSWindow(contentViewController: host)
-        let isFirstRun = !UserDefaults.standard.bool(forKey: DefaultsKey.hasOnboarded)
         window.title = mode.title(L10n.shared.s)
-        window.styleMask = isFirstRun
-            ? [.titled, .fullSizeContentView]
-            : [.titled, .closable, .fullSizeContentView]
-        window.standardWindowButton(.closeButton)?.isHidden = isFirstRun
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
@@ -2733,9 +2754,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
         if window === onboardingWindow {
             onboardingWindow = nil
-            // First run has no close action; it reaches here after completion.
-            // A system relaunch while granting access must not mark the flow
-            // complete, so it resumes at the same step.
+            // Closing onboarding dismisses it; a system relaunch while
+            // granting access must not mark the flow complete.
             guard !isTerminating else { return }
             markOnboardingComplete()
         }

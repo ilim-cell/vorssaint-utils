@@ -1572,10 +1572,13 @@ enum RepositoryFeatureTests {
             }
             if writes { availabilityWriters.insert((path as NSString).lastPathComponent) }
         }
+        // The permissionless Companion is also explicitly opt-in: its island
+        // control installs it only when the user turns it on.
         suite.expect(availabilityWriters == ["FeatureRuntime.swift",
                                        "FeaturePresets.swift",
-                                       "Defaults.swift"],
-               "feature availability is written only where the hardware gate runs, "
+                                       "Defaults.swift",
+                                       "NotchMascotSupport.swift"],
+               "feature availability is written at its gate, preset, defaults, or explicit Companion opt-in, "
                + "found \(availabilityWriters.sorted())")
 
         // A saved shelf may only be read through the loader that distinguishes

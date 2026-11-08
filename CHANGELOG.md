@@ -41,6 +41,10 @@ More reliable window switching, audio, notifications and display controls, with 
 ### Contributors
 Thanks to @CanSonmezz, @carlhuareforge, @Chubi01, @COMEBACKISREAL, @heyseere, @jerome-queck, @kit101, @maxmeis, @mevichitra, @nikigan, @nisayera, @phatina, @samueljim, @stieludv, @sugar-king, @victorioustr, @yavuzmeteafsar, @Zekuath, @zepeng-jin and @zhanghao87.
 
+### Added
+- Command Bar can open inside the Dynamic Island or as a drop, independently of the Companion. Its island surface follows the Liquid Glass setting.
+- Trash cleanup suggestions are opt-in, require Full Disk Access, and credit Alex Zamai's upstream implementation in [#3879](https://github.com/vorssaint/vorssaint-utils/pull/3879).
+
 ## [3.4.3] - 2026-10-29
 
 ### Summary

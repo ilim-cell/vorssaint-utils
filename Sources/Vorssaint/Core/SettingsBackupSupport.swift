@@ -131,6 +131,7 @@ enum SettingsBackupSupport {
     static let machineStateKeys: Set<String> = [
         DefaultsKey.displaysSwitchedOff,
         DefaultsKey.displaysSwitchedOffFingerprints,
+        DefaultsKey.notchLastPageClosedAt,
         // Agent profiles are folders on this Mac whose sign-in the cards use,
         // never settings to bring to another one.
         DefaultsKey.notchAgentsCodexProfiles,

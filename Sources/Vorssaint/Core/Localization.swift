@@ -149,7 +149,7 @@ extension Strings {
 }
 
 /// Flat, compiler-checked catalog of UI strings. Adding a field here forces
-/// both translations to be provided.
+/// every translation catalog to provide a value.
 struct Strings {
     // MARK: Menu bar & context menu
     let statusIdleTooltip: String
@@ -160,6 +160,8 @@ struct Strings {
     let menuActivateFor: String
     let menuSettings: String
     let menuAbout: String
+    let menuHelp: String
+    let menuAppHelp: String
     let menuQuit: String
     // Standard application menu bar (App / Edit / Window) shown while one of the
     // app's own windows is focused. Without it, an accessory app has no main menu
@@ -527,8 +529,8 @@ struct Strings {
     let uninstallerCommandBarToggle: String
     let uninstallerCommandBarCaption: String
     let uninstallerCommandBarFinderTitle: String
-    let uninstallerTrashDetectionTitle: String = "Suggest cleanup for apps moved to Trash"
-    let uninstallerTrashDetectionCaption: String = "Watch the Trash and offer to review an app's leftover files after you move it there."
+    let uninstallerWatchTrashToggle: String
+    let uninstallerWatchTrashCaption: String
     let uninstallerSelectionUnavailable: String
     let uninstallerRefusedNotApp: String
     let uninstallerRefusedSystemFormat: String        // + app name
@@ -920,6 +922,7 @@ struct Strings {
     let obLanguageUpdateBody: String
     let obPurposeTitle: String
     let obPurposeBody: String
+    let obRecommendationButton: String
     let obPurposeSkip: String
 
     // MARK: Settings — monitor / menu bar metrics
@@ -1336,11 +1339,13 @@ extension Strings {
         statusIdleTooltip: "Vorssaint: suspensão normal",
         statusActiveUntil: "Vorssaint: ativo até",
         statusActiveIndefinite: "Vorssaint: ativo indefinidamente",
-        menuEnableAwake: "Ativar manter acordado",
-        menuDisableAwake: "Desativar manter acordado",
+        menuEnableAwake: "Evitar suspensão",
+        menuDisableAwake: "Permitir suspensão normal",
         menuActivateFor: "Ativar por…",
         menuSettings: "Ajustes…",
         menuAbout: "Sobre o Vorssaint",
+        menuHelp: "Ajuda",
+        menuAppHelp: "Ajuda do Vorssaint",
         menuQuit: "Sair do Vorssaint",
         menuHide: "Ocultar o Vorssaint",
         menuHideOthers: "Ocultar Outros",
@@ -1686,6 +1691,8 @@ extension Strings {
         uninstallerCommandBarToggle: "Mostrar na Barra de Comandos",
         uninstallerCommandBarCaption: "Permite escolher e desinstalar aplicativos pela Barra de Comandos.",
         uninstallerCommandBarFinderTitle: "Desinstalar aplicativo selecionado no Finder",
+        uninstallerWatchTrashToggle: "Oferecer limpeza ao mover um app para o Lixo",
+        uninstallerWatchTrashCaption: "Abre o Desinstalador quando você apaga um app no Finder. Requer Acesso Total ao Disco.",
         uninstallerSelectionUnavailable: "Selecione um aplicativo que possa ser removido no Finder ou escolha outro na lista.",
         uninstallerRefusedNotApp: "Só é possível desinstalar apps.",
         uninstallerRefusedSystemFormat: "%@ não pode ser desinstalado porque faz parte do macOS.",
@@ -2056,6 +2063,7 @@ extension Strings {
         obLanguageUpdateBody: "O Vorssaint agora fala vários idiomas. Escolha o que você prefere usar; dá para mudar quando quiser nos Ajustes.",
         obPurposeTitle: "O que te trouxe aqui?",
         obPurposeBody: "Escolha uma configuração pronta ou marque exatamente o que quer usar.",
+        obRecommendationButton: "Ver algumas sugestões para o Mac",
         obPurposeSkip: "Você pode adicionar ou remover recursos depois nos Ajustes.",
 
         tabMonitor: "Monitor",
@@ -2457,11 +2465,13 @@ extension Strings {
         statusIdleTooltip: "Vorssaint: normal sleep",
         statusActiveUntil: "Vorssaint: awake until",
         statusActiveIndefinite: "Vorssaint: awake indefinitely",
-        menuEnableAwake: "Enable keep awake",
-        menuDisableAwake: "Disable keep awake",
+        menuEnableAwake: "Prevent sleep",
+        menuDisableAwake: "Allow normal sleep",
         menuActivateFor: "Activate for…",
         menuSettings: "Settings…",
         menuAbout: "About Vorssaint",
+        menuHelp: "Help",
+        menuAppHelp: "Vorssaint Help",
         menuQuit: "Quit Vorssaint",
         menuHide: "Hide Vorssaint",
         menuHideOthers: "Hide Others",
@@ -2807,6 +2817,8 @@ extension Strings {
         uninstallerCommandBarToggle: "Show in Command Bar",
         uninstallerCommandBarCaption: "Choose and uninstall apps in the Command Bar.",
         uninstallerCommandBarFinderTitle: "Uninstall app selected in Finder",
+        uninstallerWatchTrashToggle: "Offer cleanup when an app is moved to the Trash",
+        uninstallerWatchTrashCaption: "Opens the Uninstaller when you delete an app in Finder. Needs Full Disk Access.",
         uninstallerSelectionUnavailable: "Select an app that can be removed in Finder, or choose another from the list.",
         uninstallerRefusedNotApp: "Only apps can be uninstalled.",
         uninstallerRefusedSystemFormat: "%@ can’t be uninstalled because it’s part of macOS.",
@@ -3177,6 +3189,7 @@ extension Strings {
         obLanguageUpdateBody: "Vorssaint now speaks several languages. Choose the one you’d like to use; you can change it anytime in Settings.",
         obPurposeTitle: "What brought you here?",
         obPurposeBody: "Choose a ready setup or select exactly what you want to use.",
+        obRecommendationButton: "Get a few ideas for your Mac",
         obPurposeSkip: "You can add or remove features later in Settings.",
 
         tabMonitor: "Monitor",

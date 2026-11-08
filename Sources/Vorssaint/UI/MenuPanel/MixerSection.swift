@@ -780,6 +780,7 @@ struct SoundOutputSwitcherControls: View {
             Toggle(l10n.s.soundOutputSwitcherEnable, isOn: $enabled)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11.5, weight: .medium))
+                .modifier(FeaturePrimaryToggleModifier(feature: .soundOutputSwitcher))
                 .onChange(of: enabled) { _, isEnabled in
                     if isEnabled, selectedUIDs.isEmpty,
                        let current = mixer.currentOutputDeviceUID,

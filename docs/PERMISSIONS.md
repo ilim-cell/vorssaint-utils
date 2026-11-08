@@ -6,7 +6,7 @@ You can review or change every grant in System Settings, under Privacy and Secur
 
 | Permission | Optional | Powers |
 |---|---|---|
-| Accessibility | Yes | Scroll direction, Window Layout, the app and window switcher, Dock Preview, Dock click to minimize, middle click, paste as plain text, Finder cut and paste, quit on close, radial menu key actions, optional notch notification mirroring and keyboard feedback |
+| Accessibility | Yes | Scroll direction, Window Layout, the app and window switcher, Dock Preview, Dock click to minimize, middle click, paste as plain text, Finder cut and paste, quit on close, radial menu key actions, optional notch notification mirroring and keyboard feedback, optional key remapping |
 | Screen Recording | Yes | Window previews, screenshots, copy text from screen, magnified color picking and screen recordings |
 | System Audio Recording | Yes | Volume mixer, optional live equalizer and system audio capture for recordings |
 | Microphone | Yes | Your voice in a screen recording, only when you turn it on |
@@ -15,7 +15,7 @@ You can review or change every grant in System Settings, under Privacy and Secur
 | Bluetooth | Yes | Accessory battery levels in Monitor, optional accessory alerts in the notch and Bluetooth on sleep |
 | Files and Folders | Yes | Monitoring downloads in a folder you choose |
 | Notifications | Yes | Keep awake, battery, Monitor and update alerts |
-| Full Disk Access | Yes | A deeper uninstaller scan and monitoring the user Trash for app cleanup suggestions |
+| Full Disk Access | Yes | A deeper uninstaller scan and the optional cleanup offer for apps moved to the user Trash |
 | Administrator (one time) | Yes | Password free closed lid toggling |
 | Automation | Yes | Finder actions and supported music playback controls |
 | App Management | Yes | App installs, updates and removal |
@@ -36,6 +36,7 @@ You can review or change every grant in System Settings, under Privacy and Secur
 - **Paste as plain text**, which presses ⌘V for you after stripping the formatting.
 - **Finder cut and paste**, which steps in on ⌘X and ⌘V while Finder is in front.
 - **Quit on close**, which spots when an app's last window goes away.
+- **Key remapping**, which locally intercepts configured key presses to replace or suppress them. It runs only while enabled, configured and in an active user session.
 - **Radial menu**, for wheel actions that press a key combo or a media key
   for you and for the optional side button trigger; opening apps, files and
   links with the keyboard shortcut alone needs nothing.
@@ -126,11 +127,11 @@ Download monitoring watches only the folder you choose in the system picker. Fol
 
 ## Full Disk Access
 
-**Why it comes up.** The uninstaller hunts down the files an app leaves behind, like caches, preferences and logs. Some of those spots are protected by macOS and only open up with Full Disk Access. Vorssaint also watches the user Trash for newly removed apps so it can offer the same cleanup review immediately.
+**Why it comes up.** The uninstaller hunts down the files an app leaves behind, like caches, preferences and logs. Some of those spots are protected by macOS and only open up with Full Disk Access. If you turn on the cleanup offer for apps moved to the Trash, Vorssaint also reads your Trash to notice an app arriving there.
 
-**What uses it.** The uninstaller, for a deeper scan.
+**What uses it.** The uninstaller, for a deeper scan. The optional Trash cleanup offer watches only the startup-disk user Trash and offers one app at a time.
 
-**If you say no.** The uninstaller still works and scans the places it can reach. It just might not surface files tucked away in protected folders.
+**If you say no.** The uninstaller still works and scans the places it can reach. It just might not surface files tucked away in protected folders, and the cleanup offer for trashed apps stays off.
 
 **Optional.** Yes. There is no pop up for Full Disk Access. You add Vorssaint in System Settings, under Privacy and Security, Full Disk Access, and Vorssaint opens that pane for you when the feature calls for it.
 

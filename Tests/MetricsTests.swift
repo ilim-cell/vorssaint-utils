@@ -33,6 +33,7 @@ struct MetricsTests {
                 MouseSpacesGestureTapTests.run(suite)
                 SmoothScrollRoutingTests.run(suite)
                 KeyboardDebounceTapTests.run(suite)
+                KeyboardRemappingTests.run(suite)
                 PointerDisplayLookupContract.run(suite)
                 SuperKeyTapContract.run(suite)
                 PointerScreenContract.run(suite)
@@ -125,6 +126,7 @@ struct MetricsTests {
             ("notch-music", { NotchMusicExtrasTests.run(suite) }),
             ("notch", {
                 NotchTests.run(suite)
+                NotchCustomShortcutTests.run(suite)
                 NotchCompactTests.run(suite)
                 NotchCapsuleTests.run(suite)
                 PlainTextLineMoverTests.run(suite)
@@ -136,6 +138,7 @@ struct MetricsTests {
             ("agents", { NotchAgentTests.run(suite) }),
             ("features", {
                 FeatureCatalogTests.run(suite)
+                FeatureRecommendationsTests.run(suite)
                 MenuPanelSectionGateContract.run(suite)
             }),
             ("shortcut-clearing", { ShortcutClearingTests.run(suite) }),

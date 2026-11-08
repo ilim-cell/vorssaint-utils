@@ -8,7 +8,6 @@ import ServiceManagement
 struct GeneralSettings: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var appearance = AppAppearanceController.shared
-    @ObservedObject private var hotkeys = HotkeyManager.shared
     // Seeded from the stored choice so the switch does not flash off while
     // the status read is still on its way.
     @State private var loginRegistration: LaunchAtLoginSupport.Registration =
@@ -16,7 +15,6 @@ struct GeneralSettings: View {
     @State private var loginError: String?
     @State private var loginPending = false
     @State private var loginRefreshID = UUID()
-    @AppStorage(DefaultsKey.hotkeyEnabled) private var hotkeyEnabled = true
 
     private var text: GeneralSettingsStrings { FeatureStrings.generalSettings(l10n.language) }
     private var appearanceStrings: AppearanceStrings { FeatureStrings.appearance(l10n.language) }
@@ -25,12 +23,8 @@ struct GeneralSettings: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(l10n.s.tabGeneral).font(.title2.bold())
                 basicsCard
                 appearanceCard
-                if AppFeature.keepAwake.isAvailable {
-                    shortcutCard
-                }
                 feedbackCard
             }
             .frame(maxWidth: 760)
@@ -106,7 +100,8 @@ struct GeneralSettings: View {
 #if compiler(>=6.2)
             if #available(macOS 26.0, *) {
                 Divider()
-                SettingsRow(symbol: "sparkles", title: appearanceStrings.liquidGlass,
+                SettingsRow(symbol: "capsule.on.rectangle.liquid.glass",
+                            title: appearanceStrings.liquidGlass,
                             caption: text.liquidGlassCaption) { EmptyView() }
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle(text.liquidGlassOtherWindows, isOn: $appearance.liquidGlassEnabled)
@@ -119,29 +114,6 @@ struct GeneralSettings: View {
                 .padding(.leading, settingsRowTextInset)
             }
 #endif
-        }
-    }
-
-    private var shortcutCard: some View {
-        SettingsCard(title: l10n.s.globalHotkeySection) {
-            SettingsRow(symbol: "keyboard", title: l10n.s.hotkeyToggle, caption: l10n.s.hotkeyCaption) {
-                Toggle(l10n.s.hotkeyToggle, isOn: $hotkeyEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: hotkeyEnabled) { _, enabled in
-                        HotkeyManager.shared.setEnabled(enabled)
-                    }
-            }
-            ShortcutPreferenceRow(role: .keepAwake, isEnabled: hotkeyEnabled) {
-                HotkeyManager.shared.syncWithPreferences()
-            }
-            .padding(.leading, settingsRowTextInset)
-            if hotkeyEnabled, hotkeys.registrationFailed {
-                Text(l10n.s.shortcutUnavailable)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(.leading, settingsRowTextInset)
-            }
         }
     }
 

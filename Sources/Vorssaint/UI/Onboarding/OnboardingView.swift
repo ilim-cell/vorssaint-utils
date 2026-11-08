@@ -28,11 +28,14 @@ struct OnboardingView: View {
     @AppStorage(DefaultsKey.onboardingStep) private var index = 0
     @State private var selectedFeatures: Set<AppFeature>
     @State private var selectedPreset: FeaturePreset?
+    @State private var isShowingRecommendationSurvey = false
+    private let showsInitialRecommendationSurvey: Bool
 
     init(mode: OnboardingMode = .full, onFinish: @escaping () -> Void) {
         self.mode = mode
         self.onFinish = onFinish
         let defaults = UserDefaults.standard
+        showsInitialRecommendationSurvey = !defaults.bool(forKey: DefaultsKey.hasOnboarded)
         let selectionWasApplied = defaults.bool(forKey: DefaultsKey.hasOnboarded)
             || defaults.integer(forKey: DefaultsKey.onboardingStep) >= 2
         let features = selectionWasApplied
@@ -57,15 +60,23 @@ struct OnboardingView: View {
             // metrics list outgrew it, issue #176) can never push the
             // navigation bar out of the fixed frame — without a scroll, the
             // footer was clipped away and the flow looked stuck.
-            ScrollView {
+            if current == .purpose && isShowingRecommendationSurvey {
                 content
-                    .frame(maxWidth: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                ScrollView {
+                    content
+                        .frame(maxWidth: .infinity, alignment: .top)
+                }
             }
 
-            Divider()
-            navigationBar
+            if !(current == .purpose && isShowingRecommendationSurvey) {
+                Divider()
+                navigationBar
+            }
         }
-        .frame(width: 540, height: 600)
+        .frame(width: isShowingRecommendationSurvey ? 900 : 540,
+               height: isShowingRecommendationSurvey ? 760 : 600)
         .onAppear {
             if !steps.indices.contains(index) { index = 0 }
             // Onboarding narrates the permission trip itself; the floating
@@ -82,7 +93,9 @@ struct OnboardingView: View {
         switch current {
         case .welcome: WelcomeStep()
         case .purpose: PurposeStep(selectedFeatures: $selectedFeatures,
-                                   selectedPreset: $selectedPreset)
+                                   selectedPreset: $selectedPreset,
+                                   isShowingRecommendationSurvey: $isShowingRecommendationSurvey,
+                                   showsRecommendationSurvey: showsInitialRecommendationSurvey)
         case .permissions: SelectedPermissionsStep(features: selectedFeatures,
                                                    permissions: setupPermissions)
         case .done: DoneStep()
@@ -214,14 +227,46 @@ private struct PurposeStep: View {
     @ObservedObject private var l10n = L10n.shared
     @Binding var selectedFeatures: Set<AppFeature>
     @Binding var selectedPreset: FeaturePreset?
+    @Binding var isShowingRecommendationSurvey: Bool
+    let showsRecommendationSurvey: Bool
 
     private var hub: FeatureHubStrings { FeatureStrings.hub(l10n.language) }
 
     var body: some View {
         VStack(spacing: 16) {
+            if isShowingRecommendationSurvey {
+                FeatureRecommendationSurvey(
+                    onExit: { isShowingRecommendationSurvey = false },
+                    onApply: { recommendation in
+                        selectedFeatures = recommendation
+                        selectedPreset = nil
+                        isShowingRecommendationSurvey = false
+                    })
+                    .padding(18)
+            } else {
+                setupChoices
+            }
+            Spacer()
+        }
+    }
+
+    private var setupChoices: some View {
+        VStack(spacing: 16) {
             StepHeader(icon: "sparkles.rectangle.stack",
                        title: l10n.s.obPurposeTitle,
                        subtitle: l10n.s.obPurposeBody)
+
+            if showsRecommendationSurvey && FeatureRecommendationEngine.isBroadEnough {
+                Button {
+                    isShowingRecommendationSurvey = true
+                } label: {
+                    Label(l10n.s.obRecommendationButton, systemImage: "sparkles")
+                        .font(.callout.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 28)
+            }
 
             VStack(spacing: 8) {
                 ForEach(FeaturePreset.allCases) { preset in
@@ -266,8 +311,6 @@ private struct PurposeStep: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 36)
                 .padding(.bottom, 12)
-
-            Spacer()
         }
     }
 

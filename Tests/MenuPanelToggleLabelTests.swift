@@ -15,5 +15,8 @@ enum MenuPanelToggleLabelContract {
         suite.expect(!code.isEmpty, "the menu panel source is readable from the repo root")
         let unnamed = code.components(separatedBy: "Toggle(\"\", isOn:").count - 1
         suite.expect(unnamed == 0, "every menu panel switch has a name for VoiceOver, found \(unnamed) unnamed")
+        let sectionSwitches = code.components(separatedBy: ".id(activeSection)").count - 1
+        suite.expect(sectionSwitches == 2,
+                     "both menu panel presentations replace section content when the selected section changes")
     }
 }

@@ -17,7 +17,7 @@ enum AppFeature: String, CaseIterable {
     case switcher, dockPreview, dockClick, windowMaximizer, windowLayout, autoQuit, spacesOrder
     // Mouse and keyboard
     case scrollInverter, scrollHorizontal, scrollZoom, focusFollowsMouse, smoothScroll, linearScroll, mouseAcceleration, mouseNavigation, mouseButtonShortcuts, middleClick,
-         mouseClickDebounce, keyboardDebounce, textSnippets, superKey, quitWindowProtection
+         mouseClickDebounce, keyboardDebounce, keyRemapping, textSnippets, superKey, quitWindowProtection
     // Clipboard and files
     case clipboardHistory, pastePlain, finderCutPaste, finderRename, shelf, urlCleaner,
          diskImageInstaller
@@ -40,12 +40,18 @@ enum AppFeature: String, CaseIterable {
 /// Hub sections, in display order.
 enum FeatureGroup: String, CaseIterable {
     case windowsDock, mouseKeyboard, clipboardFiles, sound, energyDisplay, tools, dynamicIsland, monitor
+
+    /// Catalog groups follow the sidebar's default feature-section order.
+    static let featureHubDisplayOrder: [FeatureGroup] = [
+        .tools, .dynamicIsland, .sound, .energyDisplay,
+        .windowsDock, .mouseKeyboard, .clipboardFiles, .monitor,
+    ]
 }
 
 /// System permissions surfaced by the hub's transparency portal.
 enum AppPermission: String, CaseIterable {
     case accessibility, screenRecording, fullDiskAccess, filesAndFolders, notifications,
-         automationFinder, automationPlayback, audioCapture, microphone, camera, appManagement, calendar
+         automationFinder, automationPlayback, audioCapture, microphone, camera, appManagement, calendar, focusStatus
 }
 
 enum PermissionPollingSupport {
@@ -104,7 +110,7 @@ extension AppFeature {
         case .switcher, .dockPreview, .dockClick, .windowMaximizer, .windowLayout, .autoQuit, .spacesOrder:
             return .windowsDock
         case .scrollInverter, .scrollHorizontal, .scrollZoom, .focusFollowsMouse, .smoothScroll, .linearScroll, .mouseAcceleration, .mouseNavigation, .mouseButtonShortcuts, .middleClick,
-             .keyboardDebounce, .textSnippets, .superKey, .quitWindowProtection, .mouseClickDebounce:
+             .keyboardDebounce, .keyRemapping, .textSnippets, .superKey, .quitWindowProtection, .mouseClickDebounce:
             return .mouseKeyboard
         case .clipboardHistory, .pastePlain, .finderCutPaste, .finderRename, .shelf, .urlCleaner,
              .diskImageInstaller:
@@ -145,8 +151,9 @@ extension AppFeature {
         case .mouseAcceleration: return "cursorarrow.rays"
         case .mouseNavigation: return "arrow.left.arrow.right"
         case .mouseButtonShortcuts: return "button.programmable"
-        case .middleClick: return "hand.tap"
+        case .middleClick: return "rectangle.and.hand.point.up.left"
         case .keyboardDebounce: return "keyboard"
+        case .keyRemapping: return "keyboard.badge.ellipsis"
         case .textSnippets: return "text.append"
         case .superKey:
             return SuperKeySource.sanitized(
@@ -156,7 +163,7 @@ extension AppFeature {
         case .quitWindowProtection: return "shield.lefthalf.filled"
         case .clipboardHistory: return "doc.on.clipboard"
         case .pastePlain: return "doc.plaintext"
-        case .finderCutPaste: return "scissors"
+        case .finderCutPaste: return "finder"
         case .finderRename: return "pencil"
         case .shelf: return "tray.full"
         case .urlCleaner: return "link"
@@ -179,7 +186,7 @@ extension AppFeature {
         case .mediaTools: return "photo.on.rectangle.angled"
         case .cleaner: return "sparkles"
         case .uninstaller: return "trash"
-        case .homebrew: return "shippingbox"
+        case .homebrew: return "mug"
         case .appUpdates: return "arrow.down.app"
         case .screenshot: return "camera.viewfinder"
         case .screenRecorder: return "record.circle"
@@ -194,7 +201,7 @@ extension AppFeature {
         case .notchDownloads: return "arrow.down.circle"
         case .notchNotifications: return "bell"
         case .notchCalendar: return "calendar"
-        case .notchAgents: return "sparkles"
+        case .notchAgents: return "person.3.sequence"
         case .notchWatch: return "eye"
         case .notchMascot: return "face.smiling"
         case .notch: return "macbook"
@@ -206,7 +213,7 @@ extension AppFeature {
         case .monitorCPU: return "cpu"
         case .monitorGPU: return "rectangle.connected.to.line.below"
         case .monitorMemory: return "memorychip"
-        case .monitorNetwork: return "network"
+        case .monitorNetwork: return "point.3.connected.trianglepath.dotted"
         case .monitorDisk: return "internaldrive"
         case .monitorPower: return "bolt.fill"
         case .connectedDevices: return "cable.connector"
@@ -255,6 +262,7 @@ extension AppFeature {
                                             DefaultsKey.mouseSpacesGestureEnabled]
         case .middleClick: return [DefaultsKey.middleClickEnabled]
         case .keyboardDebounce: return [DefaultsKey.keyboardDebounceEnabled]
+        case .keyRemapping: return [DefaultsKey.keyboardRemappingEnabled]
         case .quitWindowProtection:
             return [DefaultsKey.quitProtectionQuitEnabled, DefaultsKey.quitProtectionCloseEnabled]
         case .textSnippets: return [DefaultsKey.textSnippetsEnabled, DefaultsKey.snippetLibraryEnabled]
@@ -295,6 +303,45 @@ extension AppFeature {
              .monitorCPU, .monitorGPU, .monitorMemory, .monitorNetwork, .monitorDisk, .monitorPower,
              .connectedDevices, .fanControl:
             return []
+        }
+    }
+
+    /// Settings shown in a feature hero should control the feature's main
+    /// behavior, not whether the feature is installed. On-demand tools have
+    /// no persistent activation switch.
+    var primaryEnabledKeys: [String] {
+        switch self {
+        case .windowLayout:
+            return [DefaultsKey.windowLayoutShortcutsEnabled]
+        default:
+            return enabledKeys
+        }
+    }
+
+    /// Features with a real panel, window, or immediate action can expose it
+    /// in the hero. A feature page is not itself an "Open" destination.
+    var hasHeroAction: Bool {
+        switch self {
+        case .quickLauncher, .quitApps, .cameraPreview, .scratchpad, .commandBar,
+             .radialMenu, .shelf, .notch, .cleaningMode:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// These settings historically ask for Accessibility as soon as the
+    /// behavior is enabled; keep that request when the switch moves to the
+    /// shared hero.
+    var requestsAccessibilityOnHeroActivation: Bool {
+        switch self {
+        case .scrollInverter, .scrollHorizontal, .scrollZoom, .focusFollowsMouse,
+             .smoothScroll, .linearScroll, .mouseNavigation, .mouseButtonShortcuts,
+             .middleClick, .keyboardDebounce, .keyRemapping, .superKey,
+             .mouseClickDebounce, .radialMenu:
+            return true
+        default:
+            return false
         }
     }
 
@@ -349,11 +396,11 @@ extension AppFeature {
         case .notchWatch: return [.screenRecording, .notifications]
         case .notchNotifications: return [.accessibility]
         case .notchCalendar: return [.calendar]
-        case .notch: return [.accessibility, .automationPlayback]
+        case .notch: return [.accessibility, .automationPlayback, .focusStatus]
         case .mouseAcceleration, .spacesOrder:
             return []
         case .scrollInverter, .scrollHorizontal, .scrollZoom, .focusFollowsMouse, .smoothScroll, .linearScroll, .mouseNavigation, .mouseButtonShortcuts, .middleClick,
-             .keyboardDebounce, .textSnippets, .superKey, .mouseClickDebounce,
+             .keyboardDebounce, .keyRemapping, .textSnippets, .superKey, .mouseClickDebounce,
              .dockClick, .windowMaximizer, .windowLayout,
              .autoQuit, .quitWindowProtection, .cleaningMode, .pastePlain, .radialMenu,
              // The bar reads other apps' menus and windows and types at the
@@ -488,7 +535,8 @@ extension AppFeature {
              .monitorCPU, .monitorGPU, .monitorMemory, .monitorNetwork, .monitorDisk, .monitorPower,
              .connectedDevices:
             return true
-        case .focusFollowsMouse, .scrollHorizontal, .scrollZoom, .linearScroll, .diskImageInstaller, .audioPriority,
+        case .focusFollowsMouse, .scrollHorizontal, .scrollZoom, .linearScroll, .keyRemapping,
+             .diskImageInstaller, .audioPriority,
              .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .quitApps:
             return false
         }
@@ -536,6 +584,10 @@ extension AppFeature {
                     || (boolFor(DefaultsKey.notchBrightness) && isAvailable(.brightness)
                         && boolFor(DefaultsKey.brightnessControlEnabled))
                     || (boolFor(DefaultsKey.notchClipboardWindow) && isAvailable(.clipboardHistory))
+            case (.notch, .focusStatus):
+                return NotchSupport.decodeIdleContentOrder(
+                    stringFor(DefaultsKey.notchIdleContentOrder),
+                    legacyRaw: stringFor(DefaultsKey.notchIdleContent)).contains(.focus)
             case (.radialMenu, .accessibility):
                 if let profiles = dataFor(DefaultsKey.radialMenuProfiles) {
                     return RadialMenuSupport.needsAccessibility(RadialMenuSupport.decodeProfiles(profiles))
@@ -544,6 +596,10 @@ extension AppFeature {
                     RadialMenuSupport.decode(dataFor(DefaultsKey.radialMenuItems)))
                     || RadialMenuMouseTrigger.sanitized(
                         stringFor(DefaultsKey.radialMenuMouseButton)) != .off
+            case (.keyRemapping, .accessibility):
+                return KeyboardRemappingConfig.decode(
+                    stringFor(DefaultsKey.keyboardRemappingRules) ?? "[]"
+                ).contains { $0.enabled && $0.isValid }
             case (.keepAwake, .accessibility):
                 return boolFor(DefaultsKey.keepAwakeMouseJiggleEnabled)
             case (.mixer, .accessibility):
@@ -629,6 +685,7 @@ extension AppPermission {
         case .calendar: return "calendar"
         case .camera: return "camera"
         case .appManagement: return "app.badge"
+        case .focusStatus: return "moon.fill"
         }
     }
 }

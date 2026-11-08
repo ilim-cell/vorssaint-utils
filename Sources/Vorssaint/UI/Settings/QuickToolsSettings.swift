@@ -4,6 +4,7 @@
 import SwiftUI
 
 struct QuickToolsSettings: View {
+    var focus: AppFeature? = nil
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var features = FeatureRuntime.shared
@@ -29,13 +30,8 @@ struct QuickToolsSettings: View {
 
     var body: some View {
         Form {
-            if AppFeature.quickLauncher.isAvailable {
+            if shows(.quickLauncher) {
                 Section {
-                    Button {
-                        QuickLauncherService.shared.show()
-                    } label: {
-                        Label(l10n.s.launcherOpenNow, systemImage: "square.grid.2x2")
-                    }
                     Text(l10n.s.launcherCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -61,7 +57,7 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.quickLauncher)
             }
 
-            if AppFeature.quickToggles.isAvailable {
+            if shows(.quickToggles) {
                 Section {
                     Button {
                         QuickTogglesService.shared.toggleDarkMode()
@@ -103,14 +99,8 @@ struct QuickToolsSettings: View {
                 .onAppear { brightness.refreshKeyboardLight() }
             }
 
-            if AppFeature.quitApps.isAvailable {
+            if shows(.quitApps) {
                 Section {
-                    Button {
-                        QuickTogglesService.shared.showQuitApps()
-                    } label: {
-                        Label(FeatureStrings.quickToggles(l10n.language).quitAllTitle,
-                              systemImage: "xmark.app")
-                    }
                     QuitAllExceptionsList()
                     Toggle("\(l10n.s.quickToolShortcutToggle): \(FeatureStrings.quickToggles(l10n.language).quitAllTitle)",
                            isOn: $quitAllShortcutEnabled)
@@ -149,7 +139,7 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.quitApps)
             }
 
-            if AppFeature.micMute.isAvailable {
+            if shows(.micMute) {
                 Section {
                     Button {
                         MicMuteService.shared.toggle()
@@ -188,14 +178,8 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.micMute)
             }
 
-            if AppFeature.cameraPreview.isAvailable {
+            if shows(.cameraPreview) {
                 Section {
-                    Button {
-                        CameraPreviewService.shared.show()
-                    } label: {
-                        Label(FeatureStrings.cameraPreview(l10n.language).openButton,
-                              systemImage: "web.camera")
-                    }
                     Text(FeatureStrings.cameraPreview(l10n.language).panelCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -221,7 +205,7 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.cameraPreview)
             }
 
-            if AppFeature.wallpaper.isAvailable {
+            if shows(.wallpaper) {
                 Section {
                     Toggle(FeatureStrings.wallpaper(l10n.language).applyAllDisplays,
                            isOn: Binding(
@@ -240,14 +224,8 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.wallpaper)
             }
 
-            if AppFeature.scratchpad.isAvailable {
+            if shows(.scratchpad) {
                 Section {
-                    Button {
-                        ScratchpadService.shared.show()
-                    } label: {
-                        Label(FeatureStrings.scratchpad(l10n.language).openButton,
-                              systemImage: "note.text")
-                    }
                     Text(FeatureStrings.scratchpad(l10n.language).panelCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -314,13 +292,8 @@ struct QuickToolsSettings: View {
                 .settingsFormSectionAnchor(.scratchpad)
             }
 
-            if AppFeature.cleaningMode.isAvailable {
+            if shows(.cleaningMode) {
                 Section {
-                    Button {
-                        CleaningModeManager.shared.activate()
-                    } label: {
-                        Label(l10n.s.cleaningStartNow, systemImage: "bubbles.and.sparkles")
-                    }
                     Text(l10n.s.cleaningPanelCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -335,6 +308,10 @@ struct QuickToolsSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func shows(_ feature: AppFeature) -> Bool {
+        feature.isAvailable && (focus == nil || focus == feature)
     }
 
     private var scratchpadBackgroundOpacityBinding: Binding<Double> {

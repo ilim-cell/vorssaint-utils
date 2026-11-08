@@ -24,6 +24,10 @@ enum SettingsFeatureTests {
 
     static func run(_ suite: TestSuite) {
         for (language, strings) in LocalizationTests.languages {
+            suite.expect(!strings.menuHelp.isEmpty
+                         && !strings.menuAppHelp.isEmpty
+                         && !strings.obRecommendationButton.isEmpty,
+                         "Help and onboarding recommendation labels are localized in \(language.rawValue)")
             let mouse = SettingsDirectory.sections(strings, language: language)
                 .flatMap(\.items).first { $0.page == .mouse }!
             let zoomKeywords = zip(mouse.keywords, mouse.keywordFeatures)
@@ -40,6 +44,67 @@ enum SettingsFeatureTests {
                 isAvailable: { _ in true }, featureTitle: { $0.rawValue })
             suite.expect(sidebar.prefix(3).map(\.id) == [.feature(.scrollInverter), .feature(.scrollHorizontal), .feature(.scrollZoom)],
                          "the sidebar places Zoom beside scrolling in \(language.rawValue)")
+
+            let sourceItems = AppFeature.allCases.map { feature in
+                SettingsSidebarItem(id: .feature(feature),
+                                    destination: feature.settingsDestination,
+                                    title: feature.rawValue,
+                                    icon: feature.symbolName)
+            }
+            let visibleItems = SettingsSidebarSupport.uniqueIcons(in: [
+                SettingsSidebarSection(id: 0, title: "Test", items: sourceItems),
+            ]).flatMap(\.items)
+            suite.expect(Set(sourceItems.map(\.icon)).count == sourceItems.count
+                         && visibleItems.map(\.icon) == sourceItems.map(\.icon),
+                         "feature sidebar symbols are unique without replacing their feature-card symbols")
+            if language == LocalizationTests.languages.first?.0 {
+                let collisionItems = [
+                    SettingsSidebarItem(id: .page(.about),
+                                        destination: FeatureSettingsDestination(.about),
+                                        title: "About", icon: AppFeature.cleaner.symbolName),
+                    SettingsSidebarItem(id: .feature(.cleaner),
+                                        destination: AppFeature.cleaner.settingsDestination,
+                                        title: "Cleaner", icon: AppFeature.cleaner.symbolName),
+                ]
+                let collisionResult = SettingsSidebarSupport.uniqueIcons(in: [
+                    SettingsSidebarSection(id: 0, title: "Test", items: collisionItems),
+                ]).flatMap(\.items)
+                suite.expect(collisionResult[1].icon == AppFeature.cleaner.symbolName
+                             && collisionResult[0].icon != collisionResult[1].icon,
+                             "sidebar icon deduplication preserves a feature's hero and card symbol")
+            }
+
+            let organizationItems = [
+                SettingsSidebarItem(id: .page(.general),
+                                    destination: FeatureSettingsDestination(.general),
+                                    title: "General", icon: "gearshape"),
+                SettingsSidebarItem(id: .page(.features),
+                                    destination: FeatureSettingsDestination(.features),
+                                    title: "Features", icon: "square.grid.2x2"),
+                SettingsSidebarItem(id: .page(.about),
+                                    destination: FeatureSettingsDestination(.about),
+                                    title: "About", icon: "info.circle"),
+            ]
+            let sourceSection = [SettingsSidebarSection(id: 1, title: "Essentials",
+                                                         items: organizationItems)]
+            let favoritesSection = SettingsSidebarSupport.organizedSections(
+                sourceSection, favorites: [organizationItems[2].stableKey],
+                sortMode: .defaultOrder, manualOrder: [], usage: [:],
+                favoritesTitle: "Favorites")
+            suite.expect(favoritesSection.first?.title == "Favorites"
+                         && favoritesSection.first?.items.map(\.title) == ["About"]
+                         && favoritesSection.last?.items.map(\.title) == ["General", "Features"],
+                         "favorites pin sidebar destinations above their original section")
+            let nameSorted = SettingsSidebarSupport.organizedSections(
+                sourceSection, favorites: [], sortMode: .name,
+                manualOrder: [], usage: [:], favoritesTitle: "Favorites")
+            suite.expect(nameSorted.first?.items.map(\.title) == ["About", "Features", "General"],
+                         "sidebar name sorting uses localized title order")
+            let usageSorted = SettingsSidebarSupport.organizedSections(
+                sourceSection, favorites: [], sortMode: .mostUsed, manualOrder: [],
+                usage: [organizationItems[1].stableKey: 3], favoritesTitle: "Favorites")
+            suite.expect(usageSorted.first?.items.first?.title == "Features",
+                         "most-used sorting prioritizes selected destinations")
         }
         let isCodeLine: (String) -> Bool = {
             !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//")
@@ -104,6 +169,226 @@ enum SettingsFeatureTests {
                 guard let handler = startup.range(of: name), let backupDispatch else { return false }
                 return backupDispatch.lowerBound < handler.lowerBound
             }, "backup dispatch precedes every startup handler with side effects")
+
+        let settingsView = (try? String(contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsView.swift",
+                                        encoding: .utf8)) ?? ""
+        let settingsWindow = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsWindow.swift",
+            encoding: .utf8)) ?? ""
+        let generalSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/GeneralSettings.swift",
+            encoding: .utf8)) ?? ""
+        let shortcutsSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/ShortcutsSettings.swift",
+            encoding: .utf8)) ?? ""
+        let appDelegate = (try? String(contentsOfFile: "Sources/Vorssaint/App/AppDelegate.swift",
+                                       encoding: .utf8)) ?? ""
+        let menuPanel = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/MenuPanel/MenuPanelView.swift",
+            encoding: .utf8)) ?? ""
+        let onboarding = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Onboarding/OnboardingView.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(appDelegate.contains("window.styleMask = [.titled, .closable, .fullSizeContentView]")
+                     && appDelegate.contains("guard !isTerminating else { return }")
+                     && appDelegate.contains("NSApp.helpMenu = helpMenu")
+                     && appDelegate.contains("NSWorkspace.shared.open(AppInfo.websiteURL)")
+                     && onboarding.contains("Label(l10n.s.obRecommendationButton, systemImage: \"sparkles\")"),
+                     "onboarding can be dismissed safely and the standard Help menu opens localized app help")
+        suite.expect(menuPanel.contains(".accessibilityLabel(L10n.shared.s.actionBack)"),
+                     "metric detail navigation exposes a localized Back label to assistive technologies")
+        suite.expect(settingsView.contains("sidebarUndoController.registerUndo(for: sidebarOrderRaw")
+                     && settingsView.contains("controller.restore(previousOrder)")
+                     && settingsView.contains("controller.restore(currentOrder)")
+                     && settingsWindow.contains("override var undoManager")
+                     && appDelegate.contains("SettingsView(sidebarUndoManager: settingsUndoManager)")
+                     && appDelegate.contains("window.settingsUndoManager = settingsUndoManager"),
+                     "sidebar reorder changes register reversible actions on the Settings window's Edit menu undo manager")
+        suite.expect(!generalSettings.contains("shortcutCard")
+                     && !generalSettings.contains("ShortcutPreferenceRow")
+                     && shortcutsSettings.contains("Section(l10n.s.globalHotkeySection)")
+                     && shortcutsSettings.contains("roleRow(role, showsFeatureContext: false, isEnabled: hotkeyEnabled)")
+                     && shortcutsSettings.contains("if feature == .keepAwake { return false }"),
+                     "Keep awake's global shortcut is managed only from the Keyboard Shortcuts page")
+        if let sidebarStart = settingsView.range(of: "private var normalSidebarRows: some View"),
+           let sidebarEnd = settingsView.range(of: "private func searchResultRows",
+                                               range: sidebarStart.upperBound..<settingsView.endIndex) {
+            let sidebarRows = settingsView[sidebarStart.lowerBound..<sidebarEnd.lowerBound]
+            let settingsCards = (try? String(
+                contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsCard.swift",
+                encoding: .utf8)) ?? ""
+            suite.expect(sidebarRows.contains("SettingsIconTile(symbol: item.icon, accentGroup: item.accentGroup)")
+                         && settingsCards.contains("struct SettingsIconTile")
+                         && settingsCards.contains("struct SettingsFeatureHeader"),
+                         "sidebar icon colors follow their semantic feature group")
+            suite.expect(sidebarRows.contains(".fontWeight(item.id == selectedSidebarItem ? .semibold : .regular)"),
+                         "the selected Settings sidebar destination has a bold title")
+        } else {
+            suite.expect(false, "Settings sidebar rows are available for the icon-color contract")
+        }
+        let iconTileSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsCard.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(iconTileSource.contains("(.energyDisplay, \"bolt.fill\")")
+                     && iconTileSource.contains("(.windowsDock, \"rectangle.on.rectangle\")")
+                     && iconTileSource.contains("(.mouseKeyboard, \"rectangle.and.hand.point.up.left\")")
+                     && iconTileSource.contains("return .blue")
+                     && iconTileSource.contains("(.clipboardFiles, \"finder\")")
+                     && iconTileSource.contains("(_, \"arrow.down.app\")")
+                     && iconTileSource.contains("return .green")
+                     && iconTileSource.contains("return .accentColor")
+                     && iconTileSource.contains("(_, \"dock.rectangle\")")
+                     && iconTileSource.contains("(_, \"dock.arrow.down.rectangle\")")
+                     && iconTileSource.contains("(_, \"xmark.circle\")")
+                     && iconTileSource.contains("(_, \"heart.fill\")")
+                     && iconTileSource.contains("\"heart.fill\"].contains(symbol)")
+                     && iconTileSource.contains("usesBlackTileColor ? .white : color")
+                     && !iconTileSource.contains("case .sound:")
+                     && !iconTileSource.contains(".hueRotation("),
+                     "only semantically meaningful icons in the requested groups use category colors")
+        let settingsPageStrings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Core/SettingsPageStrings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(settingsPageStrings.contains("supportDescription: \"Find project links and support development")
+                     && !settingsPageStrings.contains("supportDescription: \"Find project links, report an issue"),
+                     "the Support description covers project links and donations, not bug reports")
+        let energySidebarItem = SettingsSidebarItem(
+            id: .page(.energy), destination: FeatureSettingsDestination(.energy),
+            title: "Energy", icon: "bolt.fill")
+        let appSidebarItem = SettingsSidebarItem(
+            id: .page(.uninstaller), destination: FeatureSettingsDestination(.uninstaller),
+            title: "Uninstaller", icon: "trash")
+        suite.expect(energySidebarItem.accentGroup == .energyDisplay
+                     && appSidebarItem.accentGroup == .tools,
+                     "sidebar page rows without a matching feature still receive their category accent")
+        suite.expect(iconTileSource.contains("size * 0.62")
+                     && iconTileSource.contains("return .accentColor"),
+                     "Trackpad Middle Click is larger and other icons fall back to the system accent")
+        suite.expect(settingsView.contains("symbol: sidebarItem.icon")
+                     && settingsView.contains("title: sidebarItem.title"),
+                     "the selected destination's hero matches its sidebar icon and label")
+        suite.expect(settingsView.contains("case .shortcuts: return l10n.s.shortcutsPageCaption")
+                     && settingsView.contains("case .advanced: return FeatureStrings.settingsPages(l10n.language).advancedDescription")
+                     && settingsView.contains("case .about: return FeatureStrings.settingsPages(l10n.language).aboutDescription")
+                     && settingsView.contains("case .support: return FeatureStrings.settingsPages(l10n.language).supportDescription")
+                     && settingsView.contains("case .releaseNotes: return FeatureStrings.settingsPages(l10n.language).releaseNotesDescription"),
+                     "settings pages display localized hero descriptions specific to their content")
+        let featureHubSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(featureHubSource.contains("case .scrollZoom: return L10n.shared.s.zoomControlNote")
+                     && featureHubSource.contains("case .keyRemapping:\n            return FeatureStrings.settingsPages"),
+                     "feature heroes use explanatory copy instead of a control label or hard-coded English")
+        let commandBarSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/CommandBarSettings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(!commandBarSettings.contains("Button(text.openButton)")
+                     && commandBarSettings.contains("Button(text.resetPositionButton)"),
+                     "Command Bar opens from its hero and keeps only the reset-position action in its page")
+        let mediaWorkspace = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Media/MediaWorkspaceView.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(mediaWorkspace.contains("MediaWorkspaceView(compact: false, showsTitle: false)")
+                     && mediaWorkspace.contains(".frame(maxWidth: 804)")
+                     && mediaWorkspace.contains("if showsTitle"),
+                     "the Media page aligns to the Settings hero and avoids repeating its title")
+        suite.expect(mediaWorkspace.contains("inputURLs.isEmpty ? l10n.s.mediaSelectFile : actionTitle")
+                     && mediaWorkspace.contains("if inputURLs.isEmpty {\n                    chooseInput()")
+                     && mediaWorkspace.contains(".help(inputURLs.isEmpty ? l10n.s.mediaErrorNoFile"),
+                     "empty Media states explain the next step and make the primary action choose a file")
+        suite.expect(settingsView.contains("feature == .notch")
+                     && settingsView.contains("featurePageFooter(feature)")
+                     && settingsView.contains("targetFeature: feature")
+                     && settingsView.contains("Toggle(isOn: featureActivationBinding(for: feature))")
+                     && settingsView.contains("Toggle(isOn: featureActivationBinding(for: feature)) { EmptyView() }")
+                     && settingsView.contains(".labelsHidden()")
+                     && settingsView.contains(".accessibilityLabel(feature.hubTitle")
+                     && settingsView.contains("FeatureRuntime.shared.setPrimaryEnabled(feature, isEnabled)")
+                     && settingsView.contains("feature.hasHeroAction || feature == .screenshot")
+                     && !settingsView.contains("featureAvailabilityBinding")
+                     && settingsView.contains("case .notch:\n                return .notch")
+                     && settingsView.contains("matches.count == 1 ? matches.first : nil")
+                     && settingsView.contains("confirmationDialog(FeatureStrings.hub(l10n.language).uninstallButton"),
+                     "feature heroes expose activation and real open actions with confirmed uninstall")
+        let quickTools = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/QuickToolsSettings.swift",
+            encoding: .utf8)) ?? ""
+        let radialMenu = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/RadialMenuSettings.swift",
+            encoding: .utf8)) ?? ""
+        let shelfSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/ShelfSettings.swift",
+            encoding: .utf8)) ?? ""
+        let notchSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/NotchSettings.swift",
+            encoding: .utf8)) ?? ""
+        let notchTabRow = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/NotchSettingsTabRow.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(settingsView.contains("case .shelf:\n            ShelfService.shared.summon()")
+                     && settingsView.contains("case .notch:\n            NotchService.shared.open()")
+                     && settingsView.contains("case .cleaningMode:\n            CleaningModeManager.shared.activate()")
+                     && settingsView.contains("case .cleaningMode: \"Lock now\"")
+                     && !quickTools.contains("QuickLauncherService.shared.show()")
+                     && !quickTools.contains("QuickTogglesService.shared.showQuitApps()")
+                     && !quickTools.contains("CameraPreviewService.shared.show()")
+                     && !quickTools.contains("ScratchpadService.shared.show()")
+                     && !quickTools.contains("CleaningModeManager.shared.activate()")
+                     && !radialMenu.contains("RadialMenuService.shared.presentPreview(for: selectedProfile)")
+                     && !shelfSettings.contains("ShelfService.shared.summon()")
+                     && !notchSettings.contains("canOpen: enabled")
+                     && !notchTabRow.contains("Button(action: open)"),
+                     "feature open actions live in the hero without duplicate page buttons")
+        let radialMenuSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/RadialMenuSettings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(!shortcutsSettings.contains("Text(l10n.s.shortcutsPageCaption)")
+                     && !radialMenuSettings.contains("text.limitCaption : text.hubDescription"),
+                     "page descriptions are not repeated below their hero; contextual radial-menu limit guidance remains")
+        suite.expect(!settingsView.contains("Text(l10n.s.aboutDescription)"),
+                     "the About page description appears once in its hero")
+        suite.expect(settingsView.contains("accentGroup: sidebarItem.accentGroup"),
+                     "feature heroes reuse the selected sidebar item's accent group")
+        suite.expect(settingsView.contains("arrow.up.arrow.down")
+                     && settingsView.contains("heart.slash")
+                     && settingsView.contains("resetUsageTitle"),
+                     "sidebar organization sits beside search, supports usage reset, and uses heart favorites")
+        let featureHub = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(featureHub.contains("TextField(\"Search features\"")
+                     && featureHub.contains("LazyVGrid")
+                     && featureHub.contains("SettingsIconTile(symbol: feature.symbolName")
+                     && featureHub.contains(".confirmationDialog(")
+                     && featureHub.contains("confirmingUninstallAll")
+                     && featureHub.contains(".confirmationDialog(hub.uninstallButton"),
+                     "the Features hub is searchable, presents feature cards, and confirms uninstalls")
+        let settingsCards = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsCard.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(settingsCards.contains("\"camera.viewfinder\"")
+                     && settingsCards.contains("\"note.text\"")
+                     && settingsCards.contains("\"record.circle\"")
+                     && settingsCards.contains("\"web.camera\"")
+                     && settingsCards.contains("SettingsIconTile(symbol: symbol, size: 36, accentGroup: accentGroup)")
+                     && settingsCards.contains("struct FeaturePrimaryToggleModifier: ViewModifier")
+                     && settingsCards.contains(".accentColor")
+                     && settingsCards.contains("return .accentColor"),
+                     "sidebar icons use semantic group colors while ungrouped icons retain the selected accent")
+        let mouseSettings = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/MouseSettings.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(mouseSettings.contains("SettingsRow(symbol: AppFeature.middleClick.symbolName")
+                     && settingsView.contains("SettingsIconTile(symbol: item.icon, accentGroup: item.accentGroup)"),
+                     "Trackpad Middle Click uses the catalog SF Symbol in its settings row and sidebar")
+        suite.expect(settingsCards.contains("if let symbol")
+                     && settingsCards.contains("Color.clear"),
+                     "settings labels with and without symbols reserve the same aligned icon slot")
+        let settingsDirectory = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Settings/SettingsDirectory.swift",
+            encoding: .utf8)) ?? ""
+        suite.expect(settingsDirectory.contains("title: s.homebrewName, icon: \"mug\""),
+                     "Homebrew uses the mug symbol in the sidebar")
 
         let backupKeys = SettingsBackupSupport.exportKeys()
         for reserved in [false, true] {

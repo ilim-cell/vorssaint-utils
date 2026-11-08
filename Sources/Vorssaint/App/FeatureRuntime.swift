@@ -225,6 +225,27 @@ final class FeatureRuntime: ObservableObject {
         }
     }
 
+    /// Sets the main behavior preference exposed in a feature hero. A
+    /// composite feature turns on its first useful behavior, and turns all
+    /// constituent behaviors off when disabled.
+    func setPrimaryEnabled(_ feature: AppFeature, _ enabled: Bool) {
+        guard feature.isAvailable else { return }
+        let keys = feature.primaryEnabledKeys
+        guard !keys.isEmpty else { return }
+        let defaults = UserDefaults.standard
+        if enabled {
+            let activationKeys = feature == .audioPriority ? keys : Array(keys.prefix(1))
+            guard !activationKeys.allSatisfy({ defaults.bool(forKey: $0) }) else { return }
+            activationKeys.forEach { defaults.set(true, forKey: $0) }
+            if feature.requestsAccessibilityOnHeroActivation, !Permissions.shared.accessibility {
+                Permissions.shared.requestAccessibility()
+            }
+        } else {
+            keys.forEach { defaults.set(false, forKey: $0) }
+        }
+        sync([feature])
+    }
+
     /// One bump for Settings, and the Command Bar drops rows of features that
     /// just left the hub so a pin cannot linger as a bare id.
     private func finishAvailabilityChange() {
@@ -237,6 +258,7 @@ final class FeatureRuntime: ObservableObject {
     /// permission it depends on) changes. Most on-demand tools have no binding;
     /// Media only binds so uninstalling it can cancel work already in flight.
     private static let bindings: [AppFeature: () -> Void] = [
+        .uninstaller: { TrashAppWatcher.shared.syncWithPreferences() },
         .switcher: {
             WindowUseTracker.shared.syncWithFeatures()
             AppSwitcher.shared.syncWithPreferences()
@@ -263,6 +285,7 @@ final class FeatureRuntime: ObservableObject {
         .middleClick: { MiddleClickService.shared.syncWithPreferences() },
         .mouseClickDebounce: { MouseClickDebounceService.shared.syncWithPreferences() },
         .keyboardDebounce: { KeyboardDebounceService.shared.syncWithPreferences() },
+        .keyRemapping: { KeyboardRemappingService.shared.syncWithPreferences() },
         .quitWindowProtection: { QuitProtectionService.shared.syncWithPreferences() },
         .superKey: { SuperKeyService.shared.syncWithPreferences() },
         .textSnippets: {

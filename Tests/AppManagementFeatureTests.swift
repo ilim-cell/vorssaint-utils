@@ -14,16 +14,8 @@ import VMStatisticsCompat
 enum AppManagementFeatureTests {
     static func run(_ suite: TestSuite) {
         let registeredDefaults = Defaults.registeredDefaults
-        suite.expect(registeredDefaults[DefaultsKey.trashSuggestionPresentation] as? String
-                    == TrashSuggestionPresentation.notch.rawValue,
-                    "Trash suggestions default to the Dynamic Island")
-        let currentTrashApps = [URL(fileURLWithPath: "/Users/test/.Trash/Example.app"),
-                                URL(fileURLWithPath: "/Users/test/.Trash/Other.app")]
-        let knownTrashApps = Set([currentTrashApps[0].path])
-        suite.expect(TrashSuggestionSupport.newlyTrashedApps(current: currentTrashApps,
-                                                              knownPaths: knownTrashApps)
-                    == [currentTrashApps[1]],
-                    "Trash suggestions ignore apps already observed")
+        suite.expect(registeredDefaults[DefaultsKey.uninstallerWatchesTrash] as? Bool == false,
+                    "Trash cleanup suggestions are opt-in")
         suite.expect(registeredDefaults[DefaultsKey.extraBrightnessEnabled] as? Bool == false,
                "extra brightness is opt-in")
         suite.expect(registeredDefaults[DefaultsKey.extraBrightnessLevel] as? Int == 100,
@@ -510,6 +502,16 @@ enum AppManagementFeatureTests {
         suite.expect(Bundle(url: flatApp)?.bundleIdentifier == "com.vendor.flat"
                && UninstallerSupport.selection(for: flatApp) == nil,
                "a bare iPhone-style bundle with no Contents/Info.plist is refused")
+        let reusedApp = selectionFixture.appendingPathComponent("Reused.app", isDirectory: true)
+        writeInfo("com.vendor.first", to: reusedApp.appendingPathComponent("Contents/Info.plist"))
+        let firstReused = UninstallerSupport.selection(for: reusedApp)?.bundleID
+        _ = Bundle(url: reusedApp)?.bundleIdentifier
+        try? FileManager.default.removeItem(at: reusedApp)
+        writeInfo("com.vendor.second", to: reusedApp.appendingPathComponent("Contents/Info.plist"))
+        suite.expect(firstReused == "com.vendor.first"
+               && UninstallerSupport.selection(for: reusedApp)?.bundleID == "com.vendor.second"
+               && UninstallerSupport.bundleIdentifier(of: reusedApp) == "com.vendor.second",
+               "a replacement app at a previously read path uses its current bundle ID")
         // An iPhone or iPad app installed on a Mac with Apple silicon (#1582):
         // the App Store keeps the real bundle in Wrapper with its Info.plist at
         // the top, and Bundle reads it through the WrappedBundle link.
@@ -722,6 +724,60 @@ enum AppManagementFeatureTests {
                 URL(fileURLWithPath: "/Users/test/Downloads/Editor.app"),
                 home: URL(fileURLWithPath: "/Users/test")),
                "embedded helpers belong to the selected app while unregistered download copies never own shared data")
+        let trashHome = URL(fileURLWithPath: "/Users/test")
+        suite.expect(UninstallerSupport.applicationIsInTrustedInstallRoot(
+                URL(fileURLWithPath: "/Users/test/.Trash/Editor.app"), home: trashHome)
+            && !UninstallerSupport.applicationIsInTrustedInstallRoot(
+                URL(fileURLWithPath: "/Users/test/.Trash/Old Stuff/Editor.app"), home: trashHome)
+            && !UninstallerSupport.isInTrash(
+                URL(fileURLWithPath: "/Users/test/.Trash"), home: trashHome)
+            && !UninstallerSupport.shouldSelectAppByDefault(
+                URL(fileURLWithPath: "/Users/test/.Trash/Editor.app"), home: trashHome)
+            && UninstallerSupport.shouldSelectAppByDefault(
+                URL(fileURLWithPath: "/Applications/Editor.app"), home: trashHome),
+               "only apps directly in Trash count as trusted install roots")
+        let trashedEditor = URL(fileURLWithPath: "/Users/test/.Trash/Editor.app")
+        let trashedOther = URL(fileURLWithPath: "/Users/test/.Trash/Other.app")
+        suite.expect(UninstallerSupport.newlyTrashedApps(
+                current: [trashedEditor, trashedOther], known: [trashedEditor.path]) == [trashedOther],
+               "only newly observed Trash apps are considered")
+        let firstQueue = UninstallerSupport.pendingTrashedApps(
+            current: [trashedEditor], known: [], pending: [:])
+        let retryQueue = UninstallerSupport.pendingTrashedApps(
+            current: [trashedEditor], known: firstQueue.known, pending: firstQueue.pending)
+        let removedQueue = UninstallerSupport.pendingTrashedApps(
+            current: [], known: retryQueue.known, pending: retryQueue.pending)
+        suite.expect(firstQueue.pending[trashedEditor.path] == trashedEditor
+                    && retryQueue.pending[trashedEditor.path] == trashedEditor
+                    && removedQueue.pending.isEmpty,
+                   "unhandled Trash arrivals remain pending across checks and clear when removed")
+        suite.expect([0, 1, 2, 3, 4, 5].map(UninstallerSupport.retryDelay(forAttempt:))
+                     == [1, 2, 4, 8, 16, 30]
+                     && UninstallerSupport.retryDelay(forAttempt: -1) == 1
+                     && UninstallerSupport.retryDelay(forAttempt: 6) == 30,
+                    "temporarily unreadable Trash apps retry with capped exponential backoff")
+        let installedEditor = URL(fileURLWithPath: "/Applications/Editor.app")
+        suite.expect(!UninstallerSupport.trashedAppWasLastCopy(
+                otherCopies: [trashedEditor, installedEditor], home: trashHome, fileExists: { _ in true })
+            && UninstallerSupport.trashedAppWasLastCopy(
+                otherCopies: [trashedEditor, installedEditor], home: trashHome,
+                fileExists: { $0 != installedEditor.path })
+            && UninstallerSupport.trashedAppWasLastCopy(
+                otherCopies: [trashedEditor, trashedOther], home: trashHome, fileExists: { _ in true }),
+               "cleanup is skipped for updater copies and offered when no installed copy remains")
+        do {
+            let fm = FileManager.default
+            let trash = fm.temporaryDirectory.appendingPathComponent("trash-\(UUID().uuidString)")
+            try fm.createDirectory(at: trash.appendingPathComponent("Editor.app"), withIntermediateDirectories: true)
+            try fm.createDirectory(at: trash.appendingPathComponent("Folder"), withIntermediateDirectories: true)
+            fm.createFile(atPath: trash.appendingPathComponent("Fake.app").path, contents: Data())
+            defer { try? fm.removeItem(at: trash) }
+            suite.expect(UninstallerSupport.trashedApps(in: trash).map(\.lastPathComponent) == ["Editor.app"]
+                    && UninstallerSupport.trashedApps(in: trash.appendingPathComponent("missing")).isEmpty,
+                   "Trash scanning includes only app bundles and handles an unavailable Trash")
+        } catch {
+            suite.expect(false, "Trash fixture failed: \(error)")
+        }
         let uninstallCandidateIDs: Set<String> = ["com.vendor.editor", "com.vendor.editor.helper"]
         suite.expect(UninstallerSupport.exclusiveBundleIDs(
                    uninstallCandidateIDs,
@@ -811,6 +867,11 @@ enum AppManagementFeatureTests {
                                            bundleIDs: ["com.vendor.browser"],
                                            displayNames: ["Vendor Browser"]).nameTokens.contains("browser"),
                "the last identifier component is a token when it names the app")
+        let trashedBrowserIdentity = UninstallerSupport.identity(
+            primaryBundleID: "com.vendor.browser", bundleIDs: [], displayNames: ["Vendor Browser"])
+        suite.expect(trashedBrowserIdentity.bundleIDs.contains("com.vendor.browser")
+               && UninstallerSupport.leftoverMatch("com.vendor.browser.plist", identity: trashedBrowserIdentity) == .exact,
+               "a trashed app's verified primary identifier still matches its preference files")
         let browserIdentity = UninstallerSupport.identity(primaryBundleID: "com.vendor.browser",
                                                           bundleIDs: ["com.vendor.browser"],
                                                           displayNames: ["Vendor Browser"])
