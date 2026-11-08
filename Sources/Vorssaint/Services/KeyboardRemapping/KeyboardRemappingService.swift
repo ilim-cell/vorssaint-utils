@@ -157,6 +157,7 @@ final class KeyboardRemappingService: ObservableObject {
 
             let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
                 | CGEventMask(1 << CGEventType.keyUp.rawValue)
+                | CGEventMask(1 << CGEventType.flagsChanged.rawValue)
             guard let tap = CGEvent.tapCreate(
                 tap: .cghidEventTap,
                 place: .headInsertEventTap,
@@ -246,12 +247,16 @@ final class KeyboardRemappingService: ObservableObject {
             }
             return Unmanaged.passUnretained(event)
         }
-        guard (type == .keyDown || type == .keyUp), !OwnKeyEvent.isPosted(event) else {
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        guard KeyboardRemappingRisk.handles(eventType: type, keyCode: keyCode),
+              !OwnKeyEvent.isPosted(event) else {
             return Unmanaged.passUnretained(event)
         }
 
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        if type == .keyUp {
+        let isModifierEvent = type == .flagsChanged
+        let isKeyDown = !isModifierEvent
+            || CGEventSource.keyState(.hidSystemState, key: CGKeyCode(keyCode))
+        if type == .keyUp || (isModifierEvent && !isKeyDown) {
             let wasMapped = eventLock.withLock { heldMappings.removeValue(forKey: keyCode) != nil }
             return wasMapped ? nil : Unmanaged.passUnretained(event)
         }
@@ -267,8 +272,11 @@ final class KeyboardRemappingService: ObservableObject {
                 bundleIdentifier: frontmostBundleIdentifier,
                 rules: rules
             ) else { return nil }
-            heldMappings[keyCode] = (rule, modifiers)
-            return (rule, modifiers, true)
+            let outputModifiers = isModifierEvent
+                ? modifiers.subtracting(KeyboardRemappingRisk.modifierForSourceKeyCode(keyCode) ?? [])
+                : modifiers
+            heldMappings[keyCode] = (rule, outputModifiers)
+            return (rule, outputModifiers, true)
         }
         guard let (rule, incomingModifiers, isFirstKeyDown) = eventDetails else {
             return Unmanaged.passUnretained(event)

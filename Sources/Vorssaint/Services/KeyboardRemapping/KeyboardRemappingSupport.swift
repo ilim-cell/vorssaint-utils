@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
+import Carbon.HIToolbox
+import CoreGraphics
 import Foundation
 
 enum KeyboardRemappingTapStatus: Equatable {
@@ -69,6 +71,21 @@ enum KeyboardRemappingRisk: Equatable {
         if letterKeyCodes.contains(keyCode) { return .letter }
         if numberKeyCodes.contains(keyCode) { return .number }
         return nil
+    }
+
+    static func modifierForSourceKeyCode(_ keyCode: Int64) -> GlobalShortcutModifiers? {
+        switch keyCode {
+        case Int64(kVK_Command), Int64(kVK_RightCommand): return .command
+        case Int64(kVK_Shift), Int64(kVK_RightShift): return .shift
+        case Int64(kVK_Option), Int64(kVK_RightOption): return .option
+        case Int64(kVK_Control), Int64(kVK_RightControl): return .control
+        default: return nil
+        }
+    }
+
+    static func handles(eventType: CGEventType, keyCode: Int64) -> Bool {
+        eventType == .keyDown || eventType == .keyUp
+            || (eventType == .flagsChanged && forSourceKeyCode(keyCode) == .modifier)
     }
 
     private static let letterKeyCodes: Set<Int64> = [

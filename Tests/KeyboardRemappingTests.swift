@@ -82,6 +82,15 @@ enum KeyboardRemappingTests {
                      && KeyboardRemappingRisk.forSourceKeyCode(Int64(kVK_Shift)) == .modifier
                      && KeyboardRemappingRisk.forSourceKeyCode(Int64(kVK_Control)) == .modifier,
                      "common modifier keys are identified as risky remapping sources")
+        suite.expect(KeyboardRemappingRisk.modifierForSourceKeyCode(Int64(kVK_Command)) == .command
+                     && KeyboardRemappingRisk.modifierForSourceKeyCode(Int64(kVK_RightShift)) == .shift
+                     && KeyboardRemappingRisk.modifierForSourceKeyCode(Int64(kVK_RightOption)) == .option
+                     && KeyboardRemappingRisk.modifierForSourceKeyCode(Int64(kVK_RightControl)) == .control,
+                     "modifier source keys map to their corresponding event flags")
+        suite.expect(KeyboardRemappingRisk.handles(eventType: .flagsChanged, keyCode: Int64(kVK_Command))
+                     && !KeyboardRemappingRisk.handles(eventType: .flagsChanged, keyCode: Int64(kVK_ANSI_A))
+                     && KeyboardRemappingRisk.handles(eventType: .keyDown, keyCode: Int64(kVK_ANSI_A)),
+                     "modifier sources accept flagsChanged events without treating ordinary flag changes as keys")
         suite.expect(KeyboardRemappingRisk.forSourceKeyCode(Int64(kVK_ANSI_Q)) == .letter
                      && KeyboardRemappingRisk.forSourceKeyCode(Int64(kVK_ANSI_A)) == .letter
                      && KeyboardRemappingRisk.forSourceKeyCode(Int64(kVK_ANSI_0)) == .number
